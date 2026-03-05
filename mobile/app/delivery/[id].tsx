@@ -59,8 +59,11 @@ const DeliveryDetailScreen = () => {
                     setLoading(false);
 
                     // 3. Initiate Map & Routing (Non-blocking)
-                    if (item.latitude && item.longitude) {
-                        setDestinationLoc({ latitude: item.latitude, longitude: item.longitude });
+                    const parsedLat = Number(item.latitude);
+                    const parsedLng = Number(item.longitude);
+
+                    if (parsedLat && parsedLng && !isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
+                        setDestinationLoc({ latitude: parsedLat, longitude: parsedLng });
                     } else {
                         routingService.geocodeAddress(item.customerAddress).then(dest => {
                             if (dest) {
@@ -83,7 +86,7 @@ const DeliveryDetailScreen = () => {
     }, [id]);
 
     useEffect(() => {
-        if (driverLoc && destinationLoc) {
+        if (isNavigating && driverLoc && destinationLoc) {
             const updateRoute = async () => {
                 try {
                     const coords = await routingService.getRoute(driverLoc, destinationLoc);
@@ -95,13 +98,13 @@ const DeliveryDetailScreen = () => {
             };
             updateRoute();
         }
-    }, [driverLoc, destinationLoc]);
+    }, [isNavigating, driverLoc, destinationLoc]);
 
-    // Force map to fit both markers whenever they change
+    // Force map to fit markers whenever they change
     useEffect(() => {
         if (mapReady && mapRef.current && (driverLoc || destinationLoc)) {
             const points = [];
-            if (driverLoc) points.push(driverLoc);
+            if (isNavigating && driverLoc) points.push(driverLoc);
             if (destinationLoc) points.push(destinationLoc);
 
             if (points.length > 0 && Platform.OS !== 'web') {
@@ -111,7 +114,7 @@ const DeliveryDetailScreen = () => {
                 });
             }
         }
-    }, [driverLoc, destinationLoc, mapReady]);
+    }, [isNavigating, driverLoc, destinationLoc, mapReady]);
 
     const handleStartNavigation = async () => {
         if (!delivery) return;
@@ -210,9 +213,9 @@ const DeliveryDetailScreen = () => {
                         <View style={styles.mapPlaceholder}>
                             <AppMap
                                 mapRef={mapRef}
-                                driverLoc={driverLoc}
+                                driverLoc={isNavigating ? driverLoc : null}
                                 destinationLoc={destinationLoc}
-                                routeCoords={routeCoords}
+                                routeCoords={isNavigating ? routeCoords : []}
                                 onMapReady={() => setMapReady(true)}
                             />
                             {/* Locate Me Button Overlay */}

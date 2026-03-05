@@ -56,6 +56,27 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (r
         const parsedQuantity = quantity ? parseInt(quantity) : 1;
         const parsedAmount = amount !== undefined ? parseFloat(amount) : parsedQuantity * 800;
 
+        // Check inventory first
+        const inventory = await prisma.inventory.findUnique({
+            where: { cylinderType }
+        });
+
+        if (!inventory || inventory.stockLevel < parsedQuantity) {
+            return res.status(400).json({
+                message: `Insufficient stock for ${cylinderType}. Only ${inventory ? inventory.stockLevel : 0} left.`
+            });
+        }
+
+        // Decrement inventory
+        const updatedInventory = await prisma.inventory.update({
+            where: { cylinderType },
+            data: {
+                stockLevel: {
+                    decrement: parsedQuantity
+                }
+            }
+        });
+
         const newOrder = await prisma.order.create({
             data: {
                 customerName,
@@ -72,8 +93,9 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (r
         try {
             const { getIO } = require('../lib/socket');
             getIO().emit('newOrder', newOrder);
+            getIO().emit('inventoryUpdate', updatedInventory);
         } catch (err) {
-            console.error('Socket emit error (New Order):', err.message);
+            console.error('Socket emit error (New Order/Inventory):', err.message);
         }
 
         res.status(201).json(newOrder);
@@ -126,6 +148,14 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                     }
                 });
             }
+        }
+
+        // Real-time update via Socket.io
+        try {
+            const { getIO } = require('../lib/socket');
+            getIO().emit('orderUpdated', updatedOrder);
+        } catch (err) {
+            console.error('Socket emit error (Order Updated):', err.message);
         }
 
         res.json(updatedOrder);

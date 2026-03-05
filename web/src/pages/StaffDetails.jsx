@@ -56,8 +56,18 @@ const StaffDetails = () => {
       }
     });
 
+    socket.on('newOrder', () => {
+      fetchStaffDetails();
+    });
+
+    socket.on('orderUpdated', () => {
+      fetchStaffDetails();
+    });
+
     return () => {
       socket.off('staffStatusUpdate');
+      socket.off('newOrder');
+      socket.off('orderUpdated');
     };
   }, [id]);
 

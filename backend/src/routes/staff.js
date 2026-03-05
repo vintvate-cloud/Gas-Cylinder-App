@@ -51,7 +51,7 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async (re
             const deliveredOrders = u.orders.filter(o => o.status === 'DELIVERED');
             const totalCollection = deliveredOrders.reduce((sum, o) => {
                 const orderSum = o.transactions
-                    .filter(t => t.paymentType === 'CASH' && new Date(t.timestamp) >= startOfToday)
+                    .filter(t => new Date(t.timestamp) >= startOfToday)
                     .reduce((tSum, t) => tSum + t.amount, 0);
                 return sum + orderSum;
             }, 0);
@@ -200,7 +200,7 @@ router.get('/:id', authenticateToken, authorizeRoles('ADMIN', 'MANAGER'), async 
 
         const totalCollection = deliveredOrders.reduce((sum, o) => {
             const orderSum = o.transactions
-                .filter(t => t.paymentType === 'CASH' && new Date(t.timestamp) >= startOfToday)
+                .filter(t => new Date(t.timestamp) >= startOfToday)
                 .reduce((tSum, t) => tSum + t.amount, 0);
             return sum + orderSum;
         }, 0);

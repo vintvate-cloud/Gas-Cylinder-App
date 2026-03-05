@@ -114,8 +114,18 @@ const StaffManagement = () => {
       ));
     });
 
+    socket.on('newOrder', () => {
+      fetchStaff();
+    });
+
+    socket.on('orderUpdated', () => {
+      fetchStaff();
+    });
+
     return () => {
       socket.off('staffStatusUpdate');
+      socket.off('newOrder');
+      socket.off('orderUpdated');
     };
   }, []);
 

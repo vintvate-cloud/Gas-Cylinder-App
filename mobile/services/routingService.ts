@@ -6,9 +6,28 @@ export interface RouteCoord {
 }
 
 export const routingService = {
-    // Geocode address using RapidAPI (Google Maps API Proxy)
+    // Geocode address using Nominatim (OpenStreetMap) primarily, with RapidAPI fallback
     geocodeAddress: async (address: string): Promise<RouteCoord | null> => {
-        // Try RapidAPI First
+        // Try Nominatim (OpenStreetMap) First (Free & reliable)
+        try {
+            const encodedAddr = encodeURIComponent(address);
+            const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddr}&limit=1`, {
+                headers: { 'User-Agent': 'GasCylinderApp-Driver' },
+                timeout: 5000
+            });
+
+            if (response.data && response.data.length > 0) {
+                const first = response.data[0];
+                return {
+                    latitude: parseFloat(first.lat),
+                    longitude: parseFloat(first.lon)
+                };
+            }
+        } catch (error: any) {
+            console.warn(`Nominatim Geocoding failed (${error.message || 'unknown error'}). Trying fallback...`);
+        }
+
+        // Fallback: RapidAPI (Google Maps API Proxy)
         try {
             const RAPID_API_KEY = 'd9dcd2ed79mshc1c06f9daa6331dp178d0cjsne0c1cf1ab3a4';
             const RAPID_API_HOST = 'google-api31.p.rapidapi.com';
@@ -40,26 +59,8 @@ export const routingService = {
                     };
                 }
             }
-        } catch (error) {
-            console.warn('RapidAPI Geocoding failed, trying fallback...');
-        }
-
-        // Fallback: Nominatim (OpenStreetMap)
-        try {
-            const encodedAddr = encodeURIComponent(address);
-            const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddr}&limit=1`, {
-                headers: { 'User-Agent': 'GasCylinderApp-Driver' }
-            });
-
-            if (response.data && response.data.length > 0) {
-                const first = response.data[0];
-                return {
-                    latitude: parseFloat(first.lat),
-                    longitude: parseFloat(first.lon)
-                };
-            }
-        } catch (error) {
-            console.error('All Geocoding attempts failed:', error);
+        } catch (error: any) {
+            console.error('All Geocoding attempts failed. RapidAPI error:', error.message || error);
         }
         return null;
     },

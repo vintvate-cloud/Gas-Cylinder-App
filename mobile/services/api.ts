@@ -7,7 +7,7 @@ import { storage } from './storage';
  */
 const api = axios.create({
     // Replace with your local machine's IP address (e.g., 192.168.x.x)
-    baseURL: 'http://10.165.240.142:5000',
+    baseURL: 'http://10.235.139.142:5000',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',

@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import api from './api';
 
 // Derive socket URL from the same base URL as API
-const SOCKET_URL = api.defaults.baseURL || 'http://10.165.240.142:5000';
+const SOCKET_URL = api.defaults.baseURL || 'http://10.235.139.142:5000';
 
 class SocketService {
     private socket: Socket | null = null;
