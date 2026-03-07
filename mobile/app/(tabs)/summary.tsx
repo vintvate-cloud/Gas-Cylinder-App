@@ -14,6 +14,7 @@ import { SummaryCard } from '../../components/SummaryCard';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { Delivery, deliveryService } from '../../services/deliveryService';
+import socketService from '../../services/socket';
 export default function SummaryScreen() {
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
     const [refreshing, setRefreshing] = useState(false);
@@ -33,13 +34,26 @@ export default function SummaryScreen() {
 
     useEffect(() => {
         fetchData();
-        
+
         // Auto-refresh every 30 seconds for live updates
         const interval = setInterval(() => {
             fetchData();
         }, 30000);
 
-        return () => clearInterval(interval);
+        const socket = socketService.connect();
+
+        const handleUpdate = () => {
+            fetchData();
+        };
+
+        socket.on('newOrder', handleUpdate);
+        socket.on('orderUpdated', handleUpdate);
+
+        return () => {
+            clearInterval(interval);
+            socket.off('newOrder', handleUpdate);
+            socket.off('orderUpdated', handleUpdate);
+        };
     }, [fetchData]);
 
     // Refresh when tab comes into focus
@@ -68,11 +82,14 @@ export default function SummaryScreen() {
 
     // Count deliveries by scheduled delivery date
     deliveries.forEach(delivery => {
-        if (delivery.status === 'DELIVERED' && delivery.scheduledDeliveryDate) {
-            const date = new Date(delivery.scheduledDeliveryDate);
-            const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0, Sun=6
-            chartData[mappedIndex].value++;
+        if (delivery.status === 'DELIVERED') {
+            const dateStr = delivery.scheduledDeliveryDate || delivery.createdAt;
+            if (dateStr) {
+                const date = new Date(dateStr);
+                const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0, Sun=6
+                chartData[mappedIndex].value++;
+            }
         }
     });
 
@@ -80,7 +97,7 @@ export default function SummaryScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView 
+            <ScrollView
                 contentContainerStyle={styles.content}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
