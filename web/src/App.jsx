@@ -16,18 +16,20 @@ import StaffDetails from "./pages/StaffDetails";
 import StaffManagement from "./pages/StaffManagement";
 
 const Unauthorized = () => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4">
-    <h1 className="text-6xl font-black text-rose-500 mb-4">403</h1>
-    <h2 className="text-2xl font-bold mb-6 uppercase tracking-widest">
+  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4 sm:p-6">
+    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-rose-500 mb-4">
+      403
+    </h1>
+    <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 uppercase tracking-widest text-center">
       Unauthorized Access
     </h2>
-    <p className="text-slate-500 mb-8 max-w-md text-center">
+    <p className="text-slate-500 mb-6 sm:mb-8 max-w-md text-center text-sm sm:text-base">
       You do not have the required permissions to view this section. Please
       contact your administrator if you believe this is an error.
     </p>
     <button
       onClick={() => window.history.back()}
-      className="px-8 py-3 bg-slate-800 rounded-xl font-bold hover:bg-slate-700 transition-all border border-slate-700"
+      className="px-6 sm:px-8 py-2.5 sm:py-3 bg-slate-800 rounded-xl font-bold hover:bg-slate-700 transition-all border border-slate-700 text-sm sm:text-base"
     >
       Go Back
     </button>
@@ -35,17 +37,19 @@ const Unauthorized = () => (
 );
 
 const NotFound = () => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4">
-    <h1 className="text-6xl font-black text-blue-500 mb-4">404</h1>
-    <h2 className="text-2xl font-bold mb-6 uppercase tracking-widest">
+  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4 sm:p-6">
+    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-blue-500 mb-4">
+      404
+    </h1>
+    <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 uppercase tracking-widest text-center">
       Page Not Found
     </h2>
-    <p className="text-slate-500 mb-8 max-w-md text-center">
+    <p className="text-slate-500 mb-6 sm:mb-8 max-w-md text-center text-sm sm:text-base">
       The page you are looking for doesn't exist or has been moved.
     </p>
     <a
       href="/"
-      className="px-8 py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20"
+      className="px-6 sm:px-8 py-2.5 sm:py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20 text-sm sm:text-base"
     >
       Return Home
     </a>

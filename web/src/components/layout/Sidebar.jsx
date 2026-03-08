@@ -6,11 +6,12 @@ import {
   Package,
   ShoppingCart,
   Users,
+  X,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-const Sidebar = () => {
+const Sidebar = ({ onClose }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -28,7 +29,7 @@ const Sidebar = () => {
       roles: ["ADMIN", "MANAGER"],
     },
     {
-      name: "Orders Management",
+      name: "Orders",
       path: "/orders",
       icon: ShoppingCart,
       roles: ["ADMIN", "MANAGER"],
@@ -41,7 +42,7 @@ const Sidebar = () => {
       roles: ["ADMIN", "MANAGER"],
     },
     {
-      name: "Financial Settlement",
+      name: "Settlement",
       path: "/settlement",
       icon: Calculator,
       roles: ["ADMIN", "MANAGER"],
@@ -52,24 +53,43 @@ const Sidebar = () => {
     item.roles.includes(user?.role),
   );
 
+  const handleLinkClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed left-0 top-0 h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800 z-50">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-          GasFlow Admin
-        </h1>
-        <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">
-          Delivery System
-        </p>
+    <div className="h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800">
+      {/* Header */}
+      <div className="p-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+            GasFlow Admin
+          </h1>
+          <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold hidden sm:block">
+            Delivery System
+          </p>
+        </div>
+        {/* Close button for mobile */}
+        <button
+          onClick={onClose}
+          className="lg:hidden p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          aria-label="Close menu"
+        >
+          <X size={20} />
+        </button>
       </div>
 
-      <nav className="flex-1 mt-4 px-3 space-y-1">
+      {/* Navigation */}
+      <nav className="flex-1 mt-2 lg:mt-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
         {filteredItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
               key={item.path}
               to={item.path}
+              onClick={handleLinkClick}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                 isActive
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40"
@@ -78,14 +98,19 @@ const Sidebar = () => {
             >
               <item.icon
                 size={20}
-                className={isActive ? "text-white" : "group-hover:text-white"}
+                className={
+                  isActive
+                    ? "text-white"
+                    : "group-hover:text-white flex-shrink-0"
+                }
               />
-              <span className="font-medium">{item.name}</span>
+              <span className="font-medium truncate">{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
+      {/* Footer - Logout */}
       <div className="p-4 border-t border-slate-800">
         <button
           onClick={logout}
