@@ -5,6 +5,7 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
   --animate-slide-in-right: slideInRight 0.5s ease-out forwards;
   --animate-slide-in-bottom: slideInBottom 0.5s ease-out forwards;
+  --animate-pulse-slow: pulse-slow 8s ease-in-out infinite;
 
   @keyframes blob {
     0% {
@@ -69,10 +70,10 @@
       transform: scale(1.05);
     }
   }
+}
 
-  .animate-pulse-slow {
-    animation: pulse-slow 8s ease-in-out infinite;
-  }
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
 }
 
 :root {
