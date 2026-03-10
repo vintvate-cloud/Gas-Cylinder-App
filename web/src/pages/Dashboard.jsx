@@ -24,12 +24,12 @@ import {
 import api from "../services/api";
 
 const DashboardCard = ({ title, value, icon: Icon, color, trend }) => (
-  <div className="bg-slate-900/50 border border-slate-800 p-4 lg:p-6 rounded-2xl lg:rounded-3xl hover:border-slate-700 transition-all group">
-    <div className="flex justify-between items-start mb-3 lg:mb-4">
+  <div className="bg-slate-900/50 border border-slate-800 p-4 lg:p-5 rounded-2xl hover:border-slate-700 transition-all group">
+    <div className="flex justify-between items-start mb-3">
       <div
-        className={`p-2.5 lg:p-3 rounded-xl lg:rounded-2xl bg-${color}-500/10 text-${color}-400 group-hover:scale-110 transition-transform`}
+        className={`p-2.5 rounded-xl bg-${color}-500/10 text-${color}-400 group-hover:scale-110 transition-transform`}
       >
-        <Icon size={20} lg:size={24} />
+        <Icon size={20} />
       </div>
       {trend && (
         <span
@@ -41,7 +41,7 @@ const DashboardCard = ({ title, value, icon: Icon, color, trend }) => (
       )}
     </div>
     <p className="text-slate-400 text-sm font-medium">{title}</p>
-    <h3 className="text-xl lg:text-2xl font-bold text-white mt-1">{value}</h3>
+    <h3 className="text-xl font-bold text-white mt-1">{value}</h3>
   </div>
 );
 
@@ -88,7 +88,7 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="space-y-6 lg:space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
@@ -108,7 +108,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid - Responsive */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
         <DashboardCard
           title="Active Drivers"
           value={stats.activeDrivers}
@@ -152,12 +152,12 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Section - Responsive Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Delivery Velocity Chart */}
-        <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 p-4 lg:p-8 rounded-2xl lg:rounded-3xl">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 lg:mb-8">
+        <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 p-4 lg:p-6 rounded-2xl">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
             <h3 className="text-base lg:text-lg font-bold text-white flex items-center gap-2">
-              <TrendingUp className="text-blue-500" size={18} lg:size={20} />
+              <TrendingUp className="text-blue-500" size={18} />
               Delivery Velocity (Today)
             </h3>
             <select className="bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold rounded-lg px-3 py-2 focus:outline-none w-fit">
@@ -214,11 +214,11 @@ const Dashboard = () => {
         </div>
 
         {/* Payment Split Chart */}
-        <div className="bg-slate-900/50 border border-slate-800 p-4 lg:p-8 rounded-2xl lg:rounded-3xl">
-          <h3 className="text-base lg:text-lg font-bold text-white mb-6 lg:mb-8">
+        <div className="bg-slate-900/50 border border-slate-800 p-4 lg:p-6 rounded-2xl">
+          <h3 className="text-base lg:text-lg font-bold text-white mb-4">
             Payment Split
           </h3>
-          <div className="h-[150px] lg:h-[200px] w-full">
+          <div className="h-[150px] lg:h-[180px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={paymentData} layout="vertical">
                 <CartesianGrid

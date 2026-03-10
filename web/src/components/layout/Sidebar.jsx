@@ -11,7 +11,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-const Sidebar = ({ onClose }) => {
+const Sidebar = ({ onClose, isMobileOpen }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -60,25 +60,27 @@ const Sidebar = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed left-0 top-0 h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800 z-50">
+    <div className="h-full w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800">
       {/* Header */}
       <div className="p-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent truncate">
             {user?.role === "MANAGER" ? "GasFlow Manager" : "GasFlow Admin"}
           </h1>
           <p className="text-xs text-slate-400 mt-1 tracking-widest font-semibold hidden sm:block">
             Delivery System
           </p>
         </div>
-        {/* Close button for mobile */}
-        <button
-          onClick={onClose}
-          className="lg:hidden p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-          aria-label="Close menu"
-        >
-          <X size={20} />
-        </button>
+        {/* Close button for mobile - only show when sidebar is open on mobile */}
+        {isMobileOpen && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}

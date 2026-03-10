@@ -73,13 +73,13 @@ const OrderManagement = () => {
   };
 
   return (
-    <div className="space-y-6 lg:space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl lg:text-3xl font-bold text-white uppercase tracking-tight">
+          <h2 className="text-2xl lg:text-3xl font-bold text-white uppercase tracking-tight">
             Order Management
           </h2>
-          <p className="text-slate-400 mt-1 text-sm lg:text-base">
+          <p className="text-slate-400 mt-1">
             Track customer orders and manage driver assignments
           </p>
         </div>
@@ -94,19 +94,18 @@ const OrderManagement = () => {
         </div>
       </div>
 
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl lg:rounded-3xl overflow-hidden backdrop-blur-sm">
-        <div className="p-4 lg:p-6 border-b border-slate-800 flex flex-wrap gap-3 lg:gap-4 items-center justify-between bg-slate-900/30">
+      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-sm">
+        <div className="p-4 border-b border-slate-800 flex flex-wrap gap-3 lg:gap-4 items-center justify-between bg-slate-900/30">
           <div className="flex gap-3 lg:gap-4 items-center flex-1 max-w-2xl w-full">
             <div className="relative flex-1 min-w-[200px]">
               <Search
                 className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-slate-500"
-                size={16}
-                lg:size={18}
+                size={18}
               />
               <input
                 type="text"
                 placeholder="Search..."
-                className="w-full bg-slate-800 border-none rounded-lg lg:rounded-xl py-2.5 lg:py-3 pl-10 lg:pl-12 pr-4 text-slate-200 text-sm lg:text-base placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500/50 outline-none"
+                className="w-full bg-slate-800 border-none rounded-xl py-3 pl-12 pr-4 text-slate-200 text-sm placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500/50 outline-none"
               />
             </div>
             <select className="bg-slate-800 border-none rounded-xl py-3 px-4 text-slate-300 font-semibold focus:ring-2 focus:ring-blue-500/50 outline-none">
