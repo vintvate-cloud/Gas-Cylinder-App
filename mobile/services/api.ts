@@ -8,10 +8,10 @@ import { Platform } from 'react-native';
  */
 const getBaseURL = () => {
     if (Platform.OS === 'web') {
-        return 'http://localhost:5002/api';
+        return 'http://localhost:5000';
     }
     // For mobile devices, use your machine's IP
-    return 'http://10.235.139.142:5000/api';
+    return 'http://10.128.174.142:5000';
 };
 
 const api = axios.create({
