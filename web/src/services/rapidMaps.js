@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const RAPID_API_KEY = 'd9dcd2ed79mshc1c06f9daa6331dp178d0cjsne0c1cf1ab3a4';
+const RAPID_API_KEY = import.meta.env.VITE_RAPID_API_KEY;
+if (!RAPID_API_KEY) {
+    throw new Error('VITE_RAPID_API_KEY environment variable is required');
+}
 const RAPID_API_HOST = 'google-api31.p.rapidapi.com';
 
 export const searchLocation = async (query) => {

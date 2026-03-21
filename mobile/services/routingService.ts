@@ -29,7 +29,10 @@ export const routingService = {
 
         // Fallback: RapidAPI (Google Maps API Proxy)
         try {
-            const RAPID_API_KEY = 'd9dcd2ed79mshc1c06f9daa6331dp178d0cjsne0c1cf1ab3a4';
+            const RAPID_API_KEY = process.env.EXPO_PUBLIC_RAPID_API_KEY;
+            if (!RAPID_API_KEY) {
+                throw new Error('EXPO_PUBLIC_RAPID_API_KEY environment variable is required');
+            }
             const RAPID_API_HOST = 'google-api31.p.rapidapi.com';
 
             const response = await axios.post(

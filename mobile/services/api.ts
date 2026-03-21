@@ -1,21 +1,31 @@
 import axios from 'axios';
 import { storage } from './storage';
-import { Platform } from 'react-native';
 
-/**
- * PRODUCTION-READY AXIOS INSTANCE
- * Handles base URL, timeouts, and automatic JWT injection.
- */
-const getBaseURL = () => {
-    if (Platform.OS === 'web') {
-        return 'http://localhost:5000';
-    }
-    // For mobile devices, use your machine's IP
-    return 'http://10.128.174.142:5000';
-};
+// Development detection - __DEV__ is true in development builds, false in production
+const isDevelopment = typeof __DEV__ !== 'undefined' && __DEV__;
 
+// API URL configuration
+// In development: use localhost (ensure backend runs on same machine)
+// In production: use the deployed backend URL
+const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+let BASE_URL: string;
+
+if (envApiUrl) {
+    // Explicit override takes priority
+    BASE_URL = envApiUrl;
+} else if (isDevelopment) {
+    // Default to localhost in development
+    console.warn('[API] Using localhost for development. Set EXPO_PUBLIC_API_URL to override.');
+    BASE_URL = 'http://10.0.2.2:5000'; // 10.0.2.2 is Android emulator's localhost
+} else {
+    // Production fallback
+    console.warn('[API] EXPO_PUBLIC_API_URL not set, using production fallback');
+    BASE_URL = 'https://gas-cylinder-app.onrender.com';
+}
+
+// NOTE: Render deployment uses routes WITHOUT /api prefix
 const api = axios.create({
-    baseURL: getBaseURL(),
+    baseURL: `${BASE_URL}`,
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',

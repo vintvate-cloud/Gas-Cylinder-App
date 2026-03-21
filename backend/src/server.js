@@ -22,12 +22,17 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/auth', authRoutes);
-app.use('/staff', staffRoutes);
-app.use('/orders', orderRoutes);
-app.use('/inventory', inventoryRoutes);
-app.use('/dashboard', dashboardRoutes);
-app.use('/admin', adminRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Root route
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', message: 'GasFlow Backend API', version: '1.0.0' });
+});
 
 // Basic health check
 app.get('/health', (req, res) => {
@@ -37,7 +42,3 @@ app.get('/health', (req, res) => {
 httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running with Socket.io on http://127.0.0.1:${PORT}`);
 });
-
-// Dummy comment to trigger nodemon restart
-
-// Dummy comment to trigger nodemon restart 2
