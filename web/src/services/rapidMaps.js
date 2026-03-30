@@ -5,6 +5,15 @@ let cachedKey = null;
 
 export const getGoogleMapKey = async () => {
     if (cachedKey) return cachedKey;
+    
+    // First check for direct environment variable (Vercel deployment)
+    const envKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (envKey) {
+        cachedKey = envKey;
+        return cachedKey;
+    }
+    
+    // Fallback: fetch from backend config endpoint
     try {
         const res = await api.get('/config/maps');
         cachedKey = res.data.apiKey;
@@ -18,8 +27,9 @@ export const getGoogleMapKey = async () => {
 export const searchLocation = async (query) => {
     try {
         const key = await getGoogleMapKey();
+        const mapApiUrl = 'https://maps.googleapis.com/maps/api';
         const response = await axios.get(
-            `https://maps.googleapis.com/maps/api/geocode/json`,
+            `${mapApiUrl}/geocode/json`,
             {
                 params: {
                     address: query,

@@ -285,7 +285,7 @@ const LiveMonitoringContent = ({ apiKey }) => {
                     position={{ lat: driver.latitude, lng: driver.longitude }}
                     onClick={() => setSelectedDriver(driver)}
                     icon={{
-                      url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                      url: `${import.meta.env.VITE_GOOGLE_MAP_ICONS_URL || 'http://maps.google.com/mapfiles/ms/icons'}/blue-dot.png`
                     }}
                   />
                 ))}
@@ -317,7 +317,7 @@ const LiveMonitoringContent = ({ apiKey }) => {
                   <Marker
                     position={{ lat: searchResult.lat, lng: searchResult.lng }}
                     icon={{
-                      url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                      url: `${import.meta.env.VITE_GOOGLE_MAP_ICONS_URL || 'http://maps.google.com/mapfiles/ms/icons'}/red-dot.png`
                     }}
                   />
                 )}
@@ -336,9 +336,31 @@ const LiveMonitoring = () => {
   const [apiKey, setApiKey] = useState(null);
 
   useEffect(() => {
-    getGoogleMapKey().then(key => {
-      if (key) setApiKey(key);
-    });
+    const fetchKey = async () => {
+      try {
+        const key = await getGoogleMapKey();
+        if (key) {
+          setApiKey(key);
+        } else {
+          // Check direct env variable as final fallback
+          const directKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+          if (directKey) {
+            console.log('Using direct API key from environment');
+            setApiKey(directKey);
+          } else {
+            console.error('No Google Maps API key found');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching map key:', error);
+        // Try direct env variable on error
+        const directKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        if (directKey) {
+          setApiKey(directKey);
+        }
+      }
+    };
+    fetchKey();
   }, []);
 
   if (!apiKey) {
