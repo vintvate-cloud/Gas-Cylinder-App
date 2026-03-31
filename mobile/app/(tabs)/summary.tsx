@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     RefreshControl,
     ScrollView,
     StatusBar,
@@ -21,6 +22,7 @@ import socketService from '../../services/socket';
 export default function SummaryScreen() {
     const router = useRouter();
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const { user } = useAuth();
     const insets = useSafeAreaInsets();
@@ -30,9 +32,10 @@ export default function SummaryScreen() {
             if (!user) return;
             const data = await deliveryService.getDeliveries();
             setDeliveries(data);
-            setRefreshing(false);
         } catch (error) {
             console.error('Summary fetch error:', error);
+        } finally {
+            setLoading(false);
             setRefreshing(false);
         }
     }, [user]);
@@ -113,6 +116,12 @@ export default function SummaryScreen() {
                 <Text style={styles.heroTitle}>Performance</Text>
             </View>
 
+            {loading ? (
+                <View style={styles.fullLoader}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <Text style={styles.fullLoaderText}>Loading summary...</Text>
+                </View>
+            ) : (
             <ScrollView
                 contentContainerStyle={styles.content}
                 refreshControl={
@@ -166,26 +175,18 @@ export default function SummaryScreen() {
 
                 {/* KPI Cards */}
                 <View style={styles.kpiGrid}>
-                    <View style={[styles.kpiCard, { backgroundColor: '#003087' }]}>
-                        <Text style={styles.kpiEmoji}>🚴</Text>
-                        <Text style={styles.kpiValue}>{stats.total}</Text>
-                        <Text style={styles.kpiLabel}>Total Deliveries</Text>
-                    </View>
-                    <View style={[styles.kpiCard, { backgroundColor: '#007A3D' }]}>
-                        <Text style={styles.kpiEmoji}>💰</Text>
-                        <Text style={styles.kpiValue}>₹{(stats.cash + stats.upi).toLocaleString('en-IN')}</Text>
-                        <Text style={styles.kpiLabel}>Total Earnings</Text>
-                    </View>
-                    <View style={[styles.kpiCard, { backgroundColor: '#F5A623' }]}>
-                        <Text style={styles.kpiEmoji}>💵</Text>
-                        <Text style={styles.kpiValue}>₹{stats.cash.toLocaleString('en-IN')}</Text>
-                        <Text style={styles.kpiLabel}>Cash Total</Text>
-                    </View>
-                    <View style={[styles.kpiCard, { backgroundColor: '#CC0000' }]}>
-                        <Text style={styles.kpiEmoji}>📱</Text>
-                        <Text style={styles.kpiValue}>₹{stats.upi.toLocaleString('en-IN')}</Text>
-                        <Text style={styles.kpiLabel}>UPI Total</Text>
-                    </View>
+                    {[
+                        { emoji: '🚴', value: stats.total, label: 'Total Deliveries', bg: '#003087' },
+                        { emoji: '💰', value: `₹${(stats.cash + stats.upi).toLocaleString('en-IN')}`, label: 'Total Earnings', bg: '#007A3D' },
+                        { emoji: '💵', value: `₹${stats.cash.toLocaleString('en-IN')}`, label: 'Cash Total', bg: '#F5A623' },
+                        { emoji: '📱', value: `₹${stats.upi.toLocaleString('en-IN')}`, label: 'UPI Total', bg: '#CC0000' },
+                    ].map((card) => (
+                        <View key={card.label} style={[styles.kpiCard, { backgroundColor: card.bg }]}>
+                            <Text style={styles.kpiEmoji}>{card.emoji}</Text>
+                            <Text style={styles.kpiValue}>{card.value}</Text>
+                            <Text style={styles.kpiLabel}>{card.label}</Text>
+                        </View>
+                    ))}
                 </View>
 
                 {/* Transaction History */}
@@ -200,69 +201,90 @@ export default function SummaryScreen() {
                 </View>
 
                 <View style={styles.historyCard}>
-                    {deliveries.filter(d =>
-                        d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
-                    ).length === 0 && (
+                    {loading ? (
+                        <View style={styles.loaderCenter}>
+                            <ActivityIndicator size="large" color={Colors.primary} />
+                            <Text style={styles.loadingText}>Loading transactions...</Text>
+                        </View>
+                    ) : (
+                        <>
+                        {deliveries.filter(d =>
+                            d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
+                        ).length === 0 && (
                             <View style={styles.emptyState}>
                                 <Ionicons name="receipt-outline" size={44} color={Colors.border} />
                                 <Text style={styles.noData}>No completed deliveries yet.</Text>
                             </View>
                         )}
-                    {deliveries.filter(d =>
-                        d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
-                    ).flatMap((item) =>
-                        item.transactions!.map(t => {
-                            const deliveryDate = new Date(item.createdAt);
-                            const today = new Date();
-                            const yesterday = new Date(today);
-                            yesterday.setDate(yesterday.getDate() - 1);
+                        {deliveries.filter(d =>
+                            d.status === 'DELIVERED' && d.transactions && d.transactions.length > 0
+                        ).flatMap((item) =>
+                            item.transactions!.map(t => {
+                                const deliveryDate = new Date(item.createdAt);
+                                const today = new Date();
+                                const yesterday = new Date(today);
+                                yesterday.setDate(yesterday.getDate() - 1);
 
-                            today.setHours(0, 0, 0, 0);
-                            yesterday.setHours(0, 0, 0, 0);
-                            deliveryDate.setHours(0, 0, 0, 0);
+                                today.setHours(0, 0, 0, 0);
+                                yesterday.setHours(0, 0, 0, 0);
+                                deliveryDate.setHours(0, 0, 0, 0);
 
-                            let dateStr;
-                            if (deliveryDate.getTime() === today.getTime()) {
-                                dateStr = 'Today';
-                            } else if (deliveryDate.getTime() === yesterday.getTime()) {
-                                dateStr = 'Yesterday';
-                            } else {
-                                const day = String(deliveryDate.getDate()).padStart(2, '0');
-                                const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
-                                const year = deliveryDate.getFullYear();
-                                dateStr = `${day}-${month}-${year}`;
-                            }
+                                let dateStr;
+                                if (deliveryDate.getTime() === today.getTime()) {
+                                    dateStr = 'Today';
+                                } else if (deliveryDate.getTime() === yesterday.getTime()) {
+                                    dateStr = 'Yesterday';
+                                } else {
+                                    const day = String(deliveryDate.getDate()).padStart(2, '0');
+                                    const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
+                                    const year = deliveryDate.getFullYear();
+                                    dateStr = `${day}-${month}-${year}`;
+                                }
 
-                            const isUPI = t.paymentType === 'UPI';
+                                const isUPI = t.paymentType === 'UPI';
 
-                            return (
-                                <View key={t.id} style={styles.historyItem}>
-                                    <View style={[styles.historyIcon, { backgroundColor: isUPI ? '#EBF0F9' : '#FEF3E2' }]}>
-                                        <Ionicons
-                                            name={isUPI ? 'qr-code-outline' : 'cash-outline'}
-                                            size={20}
-                                            color={isUPI ? '#003087' : '#F5A623'}
-                                        />
+                                return (
+                                    <View key={t.id} style={styles.historyItem}>
+                                        <View style={[styles.historyIcon, { backgroundColor: isUPI ? '#EBF0F9' : '#FEF3E2' }]}>
+                                            <Ionicons
+                                                name={isUPI ? 'qr-code-outline' : 'cash-outline'}
+                                                size={20}
+                                                color={isUPI ? '#003087' : '#F5A623'}
+                                            />
+                                        </View>
+                                        <View style={styles.historyInfo}>
+                                            <Text style={styles.historyName}>{item.customerName}</Text>
+                                            <Text style={styles.historyDate}>{dateStr} · {t.paymentType}</Text>
+                                        </View>
+                                        <View style={styles.historyRight}>
+                                            <Text style={styles.amountText}>+₹{t.amount}</Text>
+                                            <StatusBadge status="DELIVERED" />
+                                        </View>
                                     </View>
-                                    <View style={styles.historyInfo}>
-                                        <Text style={styles.historyName}>{item.customerName}</Text>
-                                        <Text style={styles.historyDate}>{dateStr} · {t.paymentType}</Text>
-                                    </View>
-                                    <View style={styles.historyRight}>
-                                        <Text style={styles.amountText}>+₹{t.amount}</Text>
-                                        <StatusBadge status="DELIVERED" />
-                                    </View>
-                                </View>
-                            );
-                        })
+                                );
+                            })
+                        )}
+                        </>
                     )}
                 </View>
             </ScrollView>
+            )}
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    fullLoader: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 14,
+    },
+    fullLoaderText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.textLight,
+    },
     container: {
         flex: 1,
         backgroundColor: '#FFFFFF',
@@ -515,5 +537,15 @@ const styles = StyleSheet.create({
         color: Colors.textLight,
         fontSize: 14,
         marginTop: 10,
+    },
+    loaderCenter: {
+        alignItems: 'center',
+        paddingVertical: 40,
+        gap: 12,
+    },
+    loadingText: {
+        fontSize: 14,
+        color: Colors.textLight,
+        fontWeight: '600',
     },
 });

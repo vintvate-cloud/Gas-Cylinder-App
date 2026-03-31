@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     FlatList,
     RefreshControl,
@@ -21,11 +22,17 @@ import socketService from '../../services/socket';
 
 export default function DeliveriesScreen() {
     const router = useRouter();
+    const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>();
     const { user } = useAuth();
     const [deliveries, setDeliveries] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [selectedFilter, setSelectedFilter] = useState('All');
+    const [selectedFilter, setSelectedFilter] = useState(filterParam || 'All');
     const insets = useSafeAreaInsets();
+
+    useEffect(() => {
+        if (filterParam) setSelectedFilter(filterParam);
+    }, [filterParam]);
 
     const mapDeliveryData = (data: Delivery[]) => {
         return data.map(d => ({
@@ -54,6 +61,8 @@ export default function DeliveriesScreen() {
         } catch (error: any) {
             if (!user) return;
             console.error('Fetch deliveries error:', error);
+        } finally {
+            setLoading(false);
         }
     }, [user?.id]);
 
@@ -208,24 +217,31 @@ export default function DeliveriesScreen() {
                 </ScrollView>
             </View>
 
-            <FlatList
-                data={filteredDeliveries}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                renderItem={({ item }) => (
-                    <DeliveryCard
-                        delivery={item}
-                        onPress={() => router.push(`/delivery/${item.id}` as any)}
-                        onStart={() => handleUpdateStatus(item.id, 'Out for Delivery')}
-                        onDeliver={() => router.push(`/delivery/${item.id}` as any)}
-                        onCancel={() => handleUpdateStatus(item.id, 'Cancelled')}
-                    />
-                )}
-                ListEmptyComponent={renderEmpty}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
-                }
-            />
+            {loading ? (
+                <View style={styles.fullLoader}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <Text style={styles.loadingText}>Fetching deliveries...</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredDeliveries}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContent}
+                    renderItem={({ item }) => (
+                        <DeliveryCard
+                            delivery={item}
+                            onPress={() => router.push(`/delivery/${item.id}` as any)}
+                            onStart={() => handleUpdateStatus(item.id, 'Out for Delivery')}
+                            onDeliver={() => router.push(`/delivery/${item.id}` as any)}
+                            onCancel={() => handleUpdateStatus(item.id, 'Cancelled')}
+                        />
+                    )}
+                    ListEmptyComponent={renderEmpty}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
+                    }
+                />
+            )}
         </SafeAreaView>
     );
 }
@@ -235,18 +251,12 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F1F5F9',
     },
-    loaderContainer: {
+    fullLoader: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 12,
     },
-    loadingText: {
-        fontSize: 14,
-        color: Colors.textLight,
-        fontWeight: '600',
-    },
-
     loaderContainer: {
         flex: 1,
         justifyContent: 'center',

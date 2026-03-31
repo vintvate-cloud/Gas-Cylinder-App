@@ -109,10 +109,9 @@ export const DeliveryCard: React.FC<DeliveryCardProps> = ({
                     <CustomButton
                         title="Cancel"
                         onPress={onCancel}
-                        variant="outline"
+                        variant="danger"
                         size="sm"
-                        style={[styles.actionBtn, { borderColor: Colors.danger } as any]}
-                        textStyle={{ color: Colors.danger }}
+                        style={styles.actionBtn}
                     />
                 </View>
             )}
@@ -214,8 +213,6 @@ const styles = StyleSheet.create({
     actions: {
         flexDirection: 'row',
         gap: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
         paddingTop: 14,
     },
     actionBtn: {
