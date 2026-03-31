@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Animated,
     AppState,
     RefreshControl,
@@ -14,7 +17,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppMap } from '../../components/AppMap';
+import { AppMap, DeliveryPin } from '../../components/AppMap';
 import { CustomButton } from '../../components/CustomButton';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +33,7 @@ export default function DashboardScreen() {
     const { user } = useAuth();
     const { location } = useLocation();
     const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [deliveries, setDeliveries] = useState<any[]>([]);
     const [isOnline, setIsOnline] = useState(true);
     const isOnlineRef = useRef(true);
@@ -48,38 +52,67 @@ export default function DashboardScreen() {
         ]).start(() => setToastMsg(null));
     };
     const [activeDestination, setActiveDestination] = useState<{ latitude: number, longitude: number } | null>(null);
+    const [deliveryPins, setDeliveryPins] = useState<DeliveryPin[]>([]);
     const [routeCoords, setRouteCoords] = useState<any[]>([]);
     const [socketConnected, setSocketConnected] = useState(false);
     const mapRef = React.useRef<any>(null);
+    const hasAutocentered = useRef(false);
     const insets = useSafeAreaInsets();
+
+    // Auto-center map to live location on first GPS fix
+    useEffect(() => {
+        if (location && mapRef.current && !hasAutocentered.current) {
+            hasAutocentered.current = true;
+            mapRef.current.animateToRegion({
+                ...location,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+            }, 800);
+        }
+    }, [location]);
 
     const fetchData = React.useCallback(async () => {
         try {
             if (!user) {
                 setDeliveries([]);
                 setActiveDestination(null);
+                setDeliveryPins([]);
                 return;
             }
             const data = await deliveryService.getDeliveries();
+            setLoading(false);
             setDeliveries(data);
 
-            const relevantOrder = data.find(d => d.status === 'OUT_FOR_DELIVERY') || data.find(d => d.status === 'PENDING');
-            if (relevantOrder) {
-                if (relevantOrder.latitude && relevantOrder.longitude) {
-                    setActiveDestination({ latitude: relevantOrder.latitude, longitude: relevantOrder.longitude });
-                } else {
-                    const coords = await routingService.geocodeAddress(relevantOrder.customerAddress);
-                    if (coords) setActiveDestination(coords);
-                }
+            // Geocode all non-cancelled deliveries in parallel
+            const pinPromises = data
+                .filter(d => d.status !== 'CANCELLED')
+                .map(async (d) => {
+                    let coord: { latitude: number; longitude: number } | null = null;
+                    if (d.latitude && d.longitude) {
+                        coord = { latitude: d.latitude, longitude: d.longitude };
+                    } else if (d.customerAddress) {
+                        coord = await routingService.geocodeAddress(d.customerAddress);
+                    }
+                    if (!coord) return null;
+                    return { id: d.id, coordinate: coord, customerName: d.customerName, status: d.status } as DeliveryPin;
+                });
+
+            const pins = (await Promise.all(pinPromises)).filter(Boolean) as DeliveryPin[];
+            setDeliveryPins(pins);
+
+            // Active destination = OUT_FOR_DELIVERY first, then first PENDING
+            const activeOrder = data.find(d => d.status === 'OUT_FOR_DELIVERY') || data.find(d => d.status === 'PENDING');
+            if (activeOrder) {
+                const activePin = pins.find(p => p.id === activeOrder.id);
+                if (activePin) setActiveDestination(activePin.coordinate);
             } else {
                 setActiveDestination(null);
             }
         } catch (error) {
-            if (!user) {
-                console.log('Skipping dashboard error - user logged out');
-                return;
-            }
+            if (!user) return;
             console.error('Dashboard fetch error:', error);
+        } finally {
+            setLoading(false);
         }
     }, [user]);
 
@@ -126,6 +159,9 @@ export default function DashboardScreen() {
     const handleToggleOnline = async (value: boolean) => {
         isOnlineRef.current = value;
         setIsOnline(value);
+        if (user?.id) {
+            SecureStore.setItemAsync(`onlineStatus_${user.id}`, String(value)).catch(() => {});
+        }
         showToast(value);
         if (value) {
             showOnlineNotification(user?.name || 'Driver');
@@ -151,16 +187,26 @@ export default function DashboardScreen() {
 
     useEffect(() => {
         if (!user) return;
-        // Go online when dashboard mounts
-        handleToggleOnline(true);
+
+        // Restore last saved online status instead of always going online
+        AsyncStorage.getItem(`onlineStatus_${user.id}`)
+            .catch(() => null)
+            .then(async (saved) => {
+                if (saved === null) {
+                    // Try SecureStore as primary
+                    try {
+                        saved = await SecureStore.getItemAsync(`onlineStatus_${user!.id}`);
+                    } catch { saved = null; }
+                }
+                const shouldBeOnline = saved === null ? true : saved === 'true';
+                handleToggleOnline(shouldBeOnline);
+            });
 
         // AppState — app background/foreground pe online state maintain karo
         const sub = AppState.addEventListener('change', (state) => {
             if (state === 'active' && isOnlineRef.current) {
-                // App foreground aaya, agar online tha to lastSeen refresh karo
                 updateOnlineStatus(true).catch(() => {});
             }
-            // background/inactive pe offline mat karo — sirf toggle se hoga
         });
 
         return () => {
@@ -198,6 +244,13 @@ export default function DashboardScreen() {
         <View style={{ flex: 1 }}>
         <SafeAreaView style={styles.container} edges={['bottom']}>
             <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
+            {loading ? (
+                <View style={styles.fullLoader}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <Text style={styles.fullLoaderText}>Loading dashboard...</Text>
+                </View>
+            ) : (
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
@@ -290,6 +343,7 @@ export default function DashboardScreen() {
                             driverLoc={location}
                             destinationLoc={activeDestination}
                             routeCoords={routeCoords}
+                            deliveryPins={deliveryPins}
                         />
                         {!location && (
                             <View style={styles.mapOverlay}>
@@ -327,38 +381,37 @@ export default function DashboardScreen() {
 
                     {/* Stats Grid - 2x2 white cards */}
                     <View style={styles.statsGrid}>
-                        <View style={styles.statCard}>
-                            <View style={[styles.statIconBox, { backgroundColor: '#EBF0F9' }]}>
-                                <Ionicons name="clipboard" size={20} color="#003087" />
-                            </View>
-                            <Text style={styles.statNumber}>{stats.assigned}</Text>
-                            <Text style={styles.statLabel}>Assigned</Text>
-                            <View style={[styles.statBottomBar, { backgroundColor: '#003087' }]} />
-                        </View>
-                        <View style={styles.statCard}>
-                            <View style={[styles.statIconBox, { backgroundColor: '#E6F4EC' }]}>
-                                <Ionicons name="checkmark-circle" size={20} color="#007A3D" />
-                            </View>
-                            <Text style={styles.statNumber}>{stats.delivered}</Text>
-                            <Text style={styles.statLabel}>Delivered</Text>
-                            <View style={[styles.statBottomBar, { backgroundColor: '#007A3D' }]} />
-                        </View>
-                        <View style={styles.statCard}>
-                            <View style={[styles.statIconBox, { backgroundColor: '#FDEAEA' }]}>
-                                <Ionicons name="time" size={20} color="#CC0000" />
-                            </View>
-                            <Text style={styles.statNumber}>{stats.pending}</Text>
-                            <Text style={styles.statLabel}>Pending</Text>
-                            <View style={[styles.statBottomBar, { backgroundColor: '#CC0000' }]} />
-                        </View>
-                        <View style={styles.statCard}>
-                            <View style={[styles.statIconBox, { backgroundColor: '#FEF3E2' }]}>
-                                <Ionicons name="wallet" size={20} color="#F5A623" />
-                            </View>
-                            <Text style={styles.statNumber}>₹{totalEarnings}</Text>
-                            <Text style={styles.statLabel}>Earned</Text>
-                            <View style={[styles.statBottomBar, { backgroundColor: '#F5A623' }]} />
-                        </View>
+                        {[
+                            { label: 'Assigned', value: stats.assigned, icon: 'clipboard', color: '#003087', bg: '#EBF0F9', filter: 'Assigned' },
+                            { label: 'Delivered', value: stats.delivered, icon: 'checkmark-circle', color: '#007A3D', bg: '#E6F4EC', filter: 'Delivered' },
+                            { label: 'Pending', value: stats.pending, icon: 'time', color: '#CC0000', bg: '#FDEAEA', filter: 'Out+for+Delivery' },
+                            { label: 'Earned', value: `₹${totalEarnings}`, icon: 'wallet', color: '#F5A623', bg: '#FEF3E2', filter: null },
+                        ].map((card) => (
+                            card.filter === null ? (
+                                <View key={card.label} style={styles.statCard}>
+                                    <View style={[styles.statIconBox, { backgroundColor: card.bg }]}>
+                                        <Ionicons name={card.icon as any} size={20} color={card.color} />
+                                    </View>
+                                    <Text style={styles.statNumber}>{card.value}</Text>
+                                    <Text style={styles.statLabel}>{card.label}</Text>
+                                    <View style={[styles.statBottomBar, { backgroundColor: card.color }]} />
+                                </View>
+                            ) : (
+                            <TouchableOpacity
+                                key={card.label}
+                                style={styles.statCard}
+                                onPress={() => router.push(`/deliveries?filter=${card.filter}` as any)}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[styles.statIconBox, { backgroundColor: card.bg }]}>
+                                    <Ionicons name={card.icon as any} size={20} color={card.color} />
+                                </View>
+                                <Text style={styles.statNumber}>{card.value}</Text>
+                                <Text style={styles.statLabel}>{card.label}</Text>
+                                <View style={[styles.statBottomBar, { backgroundColor: card.color }]} />
+                            </TouchableOpacity>
+                            )
+                        ))}
                     </View>
 
                     {/* Payment Split */}
@@ -394,6 +447,7 @@ export default function DashboardScreen() {
                     />
                 </View>
             </ScrollView>
+            )}
         </SafeAreaView>
 
             {/* Toast — outside SafeAreaView so it floats on top */}
@@ -415,6 +469,18 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+    fullLoader: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 14,
+        backgroundColor: '#F1F5F9',
+    },
+    fullLoaderText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.textLight,
+    },
     container: {
         flex: 1,
         backgroundColor: '#F1F5F9',

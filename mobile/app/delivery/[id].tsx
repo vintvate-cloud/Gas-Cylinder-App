@@ -3,6 +3,7 @@ import * as Linking from 'expo-linking';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
     Platform,
@@ -31,6 +32,7 @@ const DeliveryDetailScreen = () => {
     const insets = useSafeAreaInsets();
     const { location: driverLoc } = useLocation();
     const [delivery, setDelivery] = useState<Delivery | null>(null);
+    const [loading, setLoading] = useState(true);
     const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | null>(null);
     const [amount, setAmount] = useState('');
     const [txnId, setTxnId] = useState('');
@@ -67,38 +69,30 @@ const DeliveryDetailScreen = () => {
                 }
             } catch (err) {
                 console.error('Session Init Error:', err);
+            } finally {
+                setLoading(false);
             }
         };
         initializeSession();
     }, [id]);
 
     useEffect(() => {
-        if (isNavigating && driverLoc && destinationLoc) {
-            const updateRoute = async () => {
-                try {
-                    const coords = await routingService.getRoute(driverLoc, destinationLoc);
-                    setRouteCoords(coords);
-                } catch (e) {
-                    console.error('Route update error:', e);
-                }
-            };
-            updateRoute();
+        if (driverLoc && destinationLoc) {
+            routingService.getRoute(driverLoc, destinationLoc).then(setRouteCoords);
         }
-    }, [isNavigating, driverLoc, destinationLoc]);
+    }, [driverLoc, destinationLoc]);
 
     useEffect(() => {
-        if (mapReady && mapRef.current && (driverLoc || destinationLoc)) {
+        if (mapReady && destinationLoc && mapRef.current && Platform.OS !== 'web') {
             const points = [];
-            if (isNavigating && driverLoc) points.push(driverLoc);
-            if (destinationLoc) points.push(destinationLoc);
-            if (points.length > 0 && Platform.OS !== 'web') {
-                mapRef.current.fitToCoordinates(points, {
-                    edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
-                    animated: true
-                });
-            }
+            if (driverLoc) points.push(driverLoc);
+            points.push(destinationLoc);
+            mapRef.current.fitToCoordinates(points, {
+                edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                animated: true,
+            });
         }
-    }, [isNavigating, driverLoc, destinationLoc, mapReady]);
+    }, [mapReady, destinationLoc]);
 
     const handleStartNavigation = async () => {
         if (!delivery) return;
@@ -188,6 +182,12 @@ const DeliveryDetailScreen = () => {
                     </View>
                 </View>
 
+                {loading ? (
+                    <View style={styles.fullLoader}>
+                        <ActivityIndicator size="large" color={Colors.primary} />
+                        <Text style={styles.loadingText}>Loading delivery...</Text>
+                    </View>
+                ) : (
                 <ScrollView
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
@@ -209,7 +209,7 @@ const DeliveryDetailScreen = () => {
                             mapRef={mapRef}
                             driverLoc={driverLoc}
                             destinationLoc={destinationLoc}
-                            routeCoords={isNavigating ? routeCoords : []}
+                            routeCoords={routeCoords}
                             onMapReady={() => setMapReady(true)}
                         />
                         <TouchableOpacity
@@ -387,6 +387,7 @@ const DeliveryDetailScreen = () => {
                     </>
                     )}
                 </ScrollView>
+                )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -398,6 +399,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F1F5F9',
+    },
+    fullLoader: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 12,
     },
     loaderContainer: {
         flex: 1,
