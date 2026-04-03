@@ -1,5 +1,4 @@
 import {
-  ArrowUpRight,
   Clock,
   CreditCard,
   IndianRupee,
@@ -21,49 +20,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import StatCard from "../components/StatCard";
 import api from "../services/api";
-
-const getCardColors = (colorScheme) => {
-  const colors = {
-    blue: "bg-blue-50 text-blue-500",
-    indigo: "bg-indigo-50 text-indigo-500",
-    emerald: "bg-[#E8F5E9] text-[#00C853]",
-    orange: "bg-orange-50 text-orange-500",
-    cyan: "bg-cyan-50 text-cyan-500",
-    purple: "bg-purple-50 text-purple-500",
-  };
-  return colors[colorScheme] || colors.blue;
-};
-
-const DashboardCard = ({ title, value, icon: Icon, color, trend }) => (
-  <div
-    className="bg-white border md:min-h-[148px] border-[#E5E7EB] p-5 lg:p-6 rounded-[20px] transition-all hover:border-[#D1D5DB] group flex flex-col justify-between"
-    style={{ boxShadow: "0 2px 10px rgba(0, 0, 0, 0.02)" }}
-  >
-    <div className="flex justify-between items-start mb-4">
-      <div>
-        <p className="text-[#6B7280] text-[15px] font-medium tracking-wide mb-1">{title}</p>
-        <h3 className="text-3xl lg:text-[32px] font-bold text-[#1F2933]">{value}</h3>
-      </div>
-      <div
-        className={`p-3 rounded-2xl ${getCardColors(color)} transition-transform group-hover:scale-110 shrink-0`}
-      >
-        <Icon size={24} strokeWidth={2} />
-      </div>
-    </div>
-    
-    <div className="flex items-center gap-1.5 mt-2">
-      {trend && (
-        <span
-          className={`text-[13px] font-bold flex items-center gap-0.5 ${trend > 0 ? "text-[#00C853]" : "text-red-500"}`}
-        >
-          <ArrowUpRight size={16} className={trend < 0 ? "rotate-90" : ""} strokeWidth={2.5} />
-          {Math.abs(trend)}%
-        </span>
-      )}
-    </div>
-  </div>
-);
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -90,12 +48,12 @@ const Dashboard = () => {
         const res = await api.get("/dashboard/stats");
         const data = res.data.metrics;
         setStats({
-          activeDrivers: data.activeDrivers,
-          deliveriesAssigned: data.pendingOrders + data.deliveredToday,
-          cylindersDelivered: data.deliveredToday,
-          pendingDeliveries: data.pendingOrders,
-          cashCollected: data.cashCollection,
-          upiPayments: data.upiCollection,
+          activeDrivers: data.activeDrivers ?? 0,
+          deliveriesAssigned: (data.pendingOrders ?? 0) + (data.deliveredToday ?? 0),
+          cylindersDelivered: data.deliveredToday ?? 0,
+          pendingDeliveries: data.pendingOrders ?? 0,
+          cashCollected: data.cashCollection ?? 0,
+          upiPayments: data.upiCollection ?? 0,
         });
         setChartData(data.hourlyStats || []);
       } catch (err) {
@@ -131,12 +89,12 @@ const Dashboard = () => {
 
       {/* Stats Grid - Responsive Grid exactly like before, but with new styles */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
-        <DashboardCard title="Active Drivers" value={stats.activeDrivers} icon={Users} color="blue" trend={12} />
-        <DashboardCard title="Assigned" value={stats.deliveriesAssigned} icon={Truck} color="indigo" />
-        <DashboardCard title="Delivered" value={stats.cylindersDelivered} icon={PackageCheck} color="emerald" trend={8} />
-        <DashboardCard title="Pending" value={stats.pendingDeliveries} icon={Clock} color="orange" />
-        <DashboardCard title="Cash" value={`₹${stats.cashCollected}`} icon={IndianRupee} color="cyan" trend={5} />
-        <DashboardCard title="UPI" value={`₹${stats.upiPayments}`} icon={CreditCard} color="purple" trend={15} />
+        <StatCard title="Active Drivers" value={stats.activeDrivers} icon={Users} color="blue" trend={12} to="/dashboard/drivers" />
+        <StatCard title="Assigned" value={stats.deliveriesAssigned} icon={Truck} color="indigo" to="/dashboard/assigned" />
+        <StatCard title="Delivered" value={stats.cylindersDelivered} icon={PackageCheck} color="emerald" trend={8} to="/dashboard/delivered" />
+        <StatCard title="Pending" value={stats.pendingDeliveries} icon={Clock} color="orange" to="/dashboard/pending" />
+        <StatCard title="Cash" value={`₹${stats.cashCollected}`} icon={IndianRupee} color="cyan" trend={5} to="/dashboard/cash" />
+        <StatCard title="UPI" value={`₹${stats.upiPayments}`} icon={CreditCard} color="purple" trend={15} to="/dashboard/upi" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
