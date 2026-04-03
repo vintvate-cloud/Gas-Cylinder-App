@@ -6,6 +6,12 @@ import { AuthProvider } from "./context/AuthContext";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
+import AssignedPage from "./pages/dashboard/AssignedPage";
+import CashPage from "./pages/dashboard/CashPage";
+import DeliveredPage from "./pages/dashboard/DeliveredPage";
+import DriversPage from "./pages/dashboard/DriversPage";
+import PendingPage from "./pages/dashboard/PendingPage";
+import UpiPage from "./pages/dashboard/UpiPage";
 import FinancialSettlement from "./pages/FinancialSettlement";
 import Inventory from "./pages/Inventory";
 import LiveMonitoring from "./pages/LiveMonitoring";
@@ -73,6 +79,12 @@ function App() {
           >
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard/drivers" element={<DriversPage />} />
+              <Route path="/dashboard/assigned" element={<AssignedPage />} />
+              <Route path="/dashboard/delivered" element={<DeliveredPage />} />
+              <Route path="/dashboard/pending" element={<PendingPage />} />
+              <Route path="/dashboard/cash" element={<CashPage />} />
+              <Route path="/dashboard/upi" element={<UpiPage />} />
               <Route path="/orders" element={<OrderManagement />} />
               <Route path="/monitoring" element={<LiveMonitoring />} />
               <Route path="/settlement" element={<FinancialSettlement />} />

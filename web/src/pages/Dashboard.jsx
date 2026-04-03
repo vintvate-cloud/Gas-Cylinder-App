@@ -1,5 +1,4 @@
 import {
-  ArrowUpRight,
   Clock,
   CreditCard,
   IndianRupee,
@@ -12,103 +11,183 @@ import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import StatCard from "../components/StatCard";
 import api from "../services/api";
 
-const getCardColors = (colorScheme) => {
-  const colors = {
-    blue: "bg-blue-50 text-blue-500",
-    indigo: "bg-indigo-50 text-indigo-500",
-    emerald: "bg-[#E8F5E9] text-[#00C853]",
-    orange: "bg-orange-50 text-orange-500",
-    cyan: "bg-cyan-50 text-cyan-500",
-    purple: "bg-purple-50 text-purple-500",
-  };
-  return colors[colorScheme] || colors.blue;
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const TODAY_START = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+
+/** Build 12 two-hour slots 06:00→04:00 from a list of orders */
+const buildHourlyChart = (orders) => {
+  const slots = Array.from({ length: 12 }, (_, i) => {
+    const h = (i * 2 + 6) % 24;
+    return { name: `${String(h).padStart(2,"0")}:00`, deliveries: 0 };
+  });
+  orders.forEach((o) => {
+    if (o.status !== "DELIVERED") return;
+    const d = new Date(o.updatedAt);
+    if (d < TODAY_START()) return;
+    const h = d.getHours();
+    const idx = Math.floor(((h - 6 + 24) % 24) / 2);
+    if (idx >= 0 && idx < 12) slots[idx].deliveries++;
+  });
+  return slots;
 };
 
-const DashboardCard = ({ title, value, icon: Icon, color, trend }) => (
-  <div
-    className="bg-white border md:min-h-[148px] border-[#E5E7EB] p-5 lg:p-6 rounded-[20px] transition-all hover:border-[#D1D5DB] group flex flex-col justify-between"
-    style={{ boxShadow: "0 2px 10px rgba(0, 0, 0, 0.02)" }}
-  >
-    <div className="flex justify-between items-start mb-4">
-      <div>
-        <p className="text-[#6B7280] text-[15px] font-medium tracking-wide mb-1">{title}</p>
-        <h3 className="text-3xl lg:text-[32px] font-bold text-[#1F2933]">{value}</h3>
-      </div>
-      <div
-        className={`p-3 rounded-2xl ${getCardColors(color)} transition-transform group-hover:scale-110 shrink-0`}
-      >
-        <Icon size={24} strokeWidth={2} />
-      </div>
-    </div>
-    
-    <div className="flex items-center gap-1.5 mt-2">
-      {trend && (
-        <span
-          className={`text-[13px] font-bold flex items-center gap-0.5 ${trend > 0 ? "text-[#00C853]" : "text-red-500"}`}
-        >
-          <ArrowUpRight size={16} className={trend < 0 ? "rotate-90" : ""} strokeWidth={2.5} />
-          {Math.abs(trend)}%
-        </span>
-      )}
-    </div>
-  </div>
-);
+// ── custom pie label ──────────────────────────────────────────────────────────
+const PieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+  if (percent < 0.05) return null;
+  const RADIAN = Math.PI / 180;
+  const r = innerRadius + (outerRadius - innerRadius) * 0.55;
+  const x = cx + r * Math.cos(-midAngle * RADIAN);
+  const y = cy + r * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central"
+      style={{ fontSize: 11, fontWeight: 700 }}>
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
 
+// ── tooltip ───────────────────────────────────────────────────────────────────
+const tooltipStyle = {
+  backgroundColor: "#fff",
+  border: "1px solid #E5E7EB",
+  borderRadius: 12,
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#1F2933",
+  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.08)",
+};
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const [stats, setStats] = useState({
-    activeDrivers: 0,
-    deliveriesAssigned: 0,
-    cylindersDelivered: 0,
-    pendingDeliveries: 0,
-    cashCollected: 0,
-    upiPayments: 0,
+    activeDrivers: 0, deliveriesAssigned: 0,
+    cylindersDelivered: 0, pendingDeliveries: 0,
+    cashCollected: 0, upiPayments: 0,
   });
+  const [orders, setOrders]       = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
 
-  const [chartData, setChartData] = useState([]);
-
-  const paymentData = [
-    { name: "Cash", val: stats.cashCollected },
-    { name: "UPI", val: stats.upiPayments },
-  ];
-
-  const COLORS = ["#00C853", "#00E676"];
-
+  // ── fetch dashboard stats (numbers only) ──────────────────────────────────
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await api.get("/dashboard/stats");
+        const res  = await api.get("/dashboard/stats");
         const data = res.data.metrics;
         setStats({
-          activeDrivers: data.activeDrivers,
-          deliveriesAssigned: data.pendingOrders + data.deliveredToday,
-          cylindersDelivered: data.deliveredToday,
-          pendingDeliveries: data.pendingOrders,
-          cashCollected: data.cashCollection,
-          upiPayments: data.upiCollection,
+          activeDrivers:      data.activeDrivers      ?? 0,
+          deliveriesAssigned: (data.pendingOrders ?? 0) + (data.deliveredToday ?? 0),
+          cylindersDelivered: data.deliveredToday      ?? 0,
+          pendingDeliveries:  data.pendingOrders       ?? 0,
+          cashCollected:      data.cashCollection      ?? 0,
+          upiPayments:        data.upiCollection       ?? 0,
         });
-        setChartData(data.hourlyStats || []);
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error("stats:", err); }
     };
     fetchStats();
-    const interval = setInterval(fetchStats, 10000);
-    return () => clearInterval(interval);
+    const id = setInterval(fetchStats, 30000);
+    return () => clearInterval(id);
   }, []);
+
+  // ── fetch all orders for charts (client-side derived) ─────────────────────
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await api.get("/orders");
+        setOrders(Array.isArray(res.data) ? res.data : []);
+      } catch (err) { console.error("orders:", err); }
+      finally { setLoadingOrders(false); }
+    };
+    fetchOrders();
+    const id = setInterval(fetchOrders, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── derived chart data ─────────────────────────────────────────────────────
+  const hourlyData = buildHourlyChart(orders);
+
+  const paymentPieData = (() => {
+    const cash = stats.cashCollected;
+    const upi  = stats.upiPayments;
+    if (!cash && !upi) return [];
+    return [
+      { name: "Cash", value: cash },
+      { name: "UPI",  value: upi  },
+    ];
+  })();
+
+  const statusPieData = (() => {
+    const counts = {};
+    orders.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
+    return Object.entries(counts).map(([name, value]) => ({ name: name.replace(/_/g," "), value }));
+  })();
+
+  const cylinderPieData = (() => {
+    const counts = {};
+    orders.forEach((o) => { counts[o.cylinderType] = (counts[o.cylinderType] || 0) + (o.quantity || 1); });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  })();
+
+  const STATUS_COLORS  = ["#00C853","#3B82F6","#F59E0B","#EF4444","#8B5CF6"];
+  const PAYMENT_COLORS = ["#00C853","#6366F1"];
+  const CYLINDER_COLORS= ["#0EA5E9","#F97316","#A855F7","#EC4899","#14B8A6"];
+
+  // ── pie card wrapper ───────────────────────────────────────────────────────
+  const PieCard = ({ title, data, colors, emptyMsg }) => (
+    <div className="bg-white border border-[#E5E7EB] p-5 lg:p-6 rounded-[20px]"
+      style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+      <h3 className="text-[16px] font-bold text-[#1F2933] mb-4">{title}</h3>
+      {!data.length ? (
+        <div className="h-[180px] flex items-center justify-center text-gray-400 text-[13px] font-medium">
+          {loadingOrders ? "Loading..." : emptyMsg}
+        </div>
+      ) : (
+        <>
+          <div className="h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={data} cx="50%" cy="50%" outerRadius={75}
+                  dataKey="value" labelLine={false} label={PieLabel}>
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={colors[i % colors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle}
+                  formatter={(v, n) => [`${n === "value" ? v : v}`, ""]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+            {data.map((entry, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: colors[i % colors.length] }} />
+                <span className="text-[12px] font-semibold text-gray-500">
+                  {entry.name} <span className="text-[#1F2933]">({entry.value})</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 p-2 lg:p-4">
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-2">
         <div>
@@ -119,85 +198,138 @@ const Dashboard = () => {
             Real-time status of your delivery operations
           </p>
         </div>
-        <div
-          className="px-4 py-2 bg-white border border-gray-100 rounded-full flex items-center gap-2 shadow-sm shrink-0"
-        >
-          <div className="w-2 h-2 bg-[#00C853] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,200,83,0.6)]"></div>
-          <span className="text-[13px] font-bold text-gray-500 tracking-wide uppercase">
-            Live Updates
-          </span>
+        <div className="px-4 py-2 bg-white border border-gray-100 rounded-full flex items-center gap-2 shadow-sm shrink-0">
+          <div className="w-2 h-2 bg-[#00C853] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,200,83,0.6)]" />
+          <span className="text-[13px] font-bold text-gray-500 tracking-wide uppercase">Live Updates</span>
         </div>
       </div>
 
-      {/* Stats Grid - Responsive Grid exactly like before, but with new styles */}
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
-        <DashboardCard title="Active Drivers" value={stats.activeDrivers} icon={Users} color="blue" trend={12} />
-        <DashboardCard title="Assigned" value={stats.deliveriesAssigned} icon={Truck} color="indigo" />
-        <DashboardCard title="Delivered" value={stats.cylindersDelivered} icon={PackageCheck} color="emerald" trend={8} />
-        <DashboardCard title="Pending" value={stats.pendingDeliveries} icon={Clock} color="orange" />
-        <DashboardCard title="Cash" value={`₹${stats.cashCollected}`} icon={IndianRupee} color="cyan" trend={5} />
-        <DashboardCard title="UPI" value={`₹${stats.upiPayments}`} icon={CreditCard} color="purple" trend={15} />
+        <StatCard title="Active Drivers"  value={stats.activeDrivers}           icon={Users}       color="blue"    trend={12} to="/dashboard/drivers"   />
+        <StatCard title="Assigned"        value={stats.deliveriesAssigned}       icon={Truck}       color="indigo"             to="/dashboard/assigned"  />
+        <StatCard title="Delivered"       value={stats.cylindersDelivered}       icon={PackageCheck} color="emerald" trend={8}  to="/dashboard/delivered" />
+        <StatCard title="Pending"         value={stats.pendingDeliveries}        icon={Clock}       color="orange"             to="/dashboard/pending"   />
+        <StatCard title="Cash"            value={`₹${stats.cashCollected}`}      icon={IndianRupee} color="cyan"    trend={5}  to="/dashboard/cash"      />
+        <StatCard title="UPI"             value={`₹${stats.upiPayments}`}        icon={CreditCard}  color="purple"  trend={15} to="/dashboard/upi"       />
       </div>
 
+      {/* Row 1 — Delivery Velocity + Payment Split Pie */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]" style={{ boxShadow: "0 2px 10px rgba(0, 0, 0, 0.02)" }}>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+
+        {/* Delivery Velocity — built client-side from /orders */}
+        <div className="lg:col-span-2 bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]"
+          style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
             <h3 className="text-[18px] font-bold text-[#1F2933] flex items-center gap-2">
-              <TrendingUp className="text-[#1F2933]" size={20} />
+              <TrendingUp size={20} />
               Delivery Velocity (Today)
             </h3>
-            <select className="bg-gray-50 border border-gray-200 text-[#1F2933] text-[13px] font-semibold rounded-xl px-4 py-2 focus:outline-none w-fit cursor-pointer shadow-sm">
-              <option>Last 24 Hours</option>
-              <option>Yesterday</option>
-            </select>
+            <div className="flex items-center gap-2 text-[13px] text-gray-400 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00C853]" />
+              Deliveries per 2-hour slot
+            </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorDel" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00C853" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#00C853" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#9CA3AF", fontSize: 12, fontWeight: 500 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "#9CA3AF", fontSize: 12, fontWeight: 500 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", fontSize: "13px", fontWeight: 600, color: "#1F2933" }}
-                  itemStyle={{ color: "#00C853", fontWeight: 700 }}
-                />
-                <Area type="monotone" dataKey="deliveries" stroke="#00C853" strokeWidth={3} fillOpacity={1} fill="url(#colorDel)" activeDot={{ r: 6, fill: "#00C853", stroke: "#FFFFFF", strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+
+          {loadingOrders ? (
+            <div className="h-[280px] flex items-center justify-center text-gray-400 text-[13px]">
+              Loading chart...
+            </div>
+          ) : hourlyData.every((s) => s.deliveries === 0) ? (
+            <div className="h-[280px] flex flex-col items-center justify-center gap-2 text-gray-400">
+              <TrendingUp size={32} className="opacity-30" />
+              <p className="text-[14px] font-semibold">No deliveries recorded today yet</p>
+            </div>
+          ) : (
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorDel" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#00C853" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#00C853" stopOpacity={0}    />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false}
+                    tick={{ fill: "#9CA3AF", fontSize: 11, fontWeight: 500 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} allowDecimals={false}
+                    tick={{ fill: "#9CA3AF", fontSize: 11, fontWeight: 500 }} />
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#00C853", fontWeight: 700 }}
+                    formatter={(v) => [v, "Deliveries"]} />
+                  <Area type="monotone" dataKey="deliveries" stroke="#00C853" strokeWidth={3}
+                    fillOpacity={1} fill="url(#colorDel)"
+                    activeDot={{ r: 6, fill: "#00C853", stroke: "#fff", strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]" style={{ boxShadow: "0 2px 10px rgba(0, 0, 0, 0.02)" }}>
-          <h3 className="text-[18px] font-bold text-[#1F2933] mb-6">Payment Split</h3>
-          <div className="h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={paymentData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F3F4F6" />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: "#4B5563", fontSize: 13, fontWeight: 500 }} width={60} />
-                <Tooltip cursor={{ fill: "#F9FAFB" }} contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", fontWeight: 600 }} />
-                <Bar dataKey="val" radius={[0, 6, 6, 0]} barSize={24}>
-                  {paymentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-4 mt-6">
-            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-              <span className="text-[14px] font-semibold text-gray-500">Total Collection</span>
-              <span className="text-[20px] font-black text-[#1F2933]">₹{stats.cashCollected + stats.upiPayments}</span>
+        {/* Payment Split Pie */}
+        <div className="bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]"
+          style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+          <h3 className="text-[18px] font-bold text-[#1F2933] mb-1">Payment Split</h3>
+          <p className="text-[12px] text-gray-400 font-medium mb-4">Today's collection breakdown</p>
+
+          {!paymentPieData.length ? (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-[13px] font-medium">
+              {loadingOrders ? "Loading..." : "No payments today"}
+            </div>
+          ) : (
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={paymentPieData} cx="50%" cy="50%"
+                    innerRadius={50} outerRadius={80}
+                    dataKey="value" labelLine={false} label={PieLabel}>
+                    {paymentPieData.map((_, i) => (
+                      <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle}
+                    formatter={(v) => [`₹${v}`, ""]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          <div className="space-y-2 mt-4">
+            {paymentPieData.map((entry, i) => (
+              <div key={i} className="flex justify-between items-center px-3 py-2 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[i] }} />
+                  <span className="text-[13px] font-semibold text-gray-500">{entry.name}</span>
+                </div>
+                <span className="text-[14px] font-bold text-[#1F2933]">₹{entry.value}</span>
+              </div>
+            ))}
+            <div className="flex justify-between items-center px-3 py-2 bg-[#F0FDF4] rounded-xl border border-green-100">
+              <span className="text-[13px] font-bold text-gray-500">Total</span>
+              <span className="text-[16px] font-black text-[#00C853]">
+                ₹{stats.cashCollected + stats.upiPayments}
+              </span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Row 2 — Order Status Pie + Cylinder Type Pie */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <PieCard
+          title="Order Status Breakdown"
+          data={statusPieData}
+          colors={STATUS_COLORS}
+          emptyMsg="No orders found"
+        />
+        <PieCard
+          title="Cylinder Type Distribution"
+          data={cylinderPieData}
+          colors={CYLINDER_COLORS}
+          emptyMsg="No orders found"
+        />
+      </div>
+
     </div>
   );
 };
