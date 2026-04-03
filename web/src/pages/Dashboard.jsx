@@ -25,23 +25,26 @@ import api from "../services/api";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-const TODAY_START = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
-
-/** Build 12 two-hour slots 06:00→04:00 from a list of orders */
-const buildHourlyChart = (orders) => {
-  const slots = Array.from({ length: 12 }, (_, i) => {
-    const h = (i * 2 + 6) % 24;
-    return { name: `${String(h).padStart(2,"0")}:00`, deliveries: 0 };
+/** Build last-7-days daily delivery chart from all orders */
+const buildDailyChart = (orders) => {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    d.setHours(0, 0, 0, 0);
+    return {
+      name: d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+      date: d,
+      deliveries: 0,
+    };
   });
   orders.forEach((o) => {
     if (o.status !== "DELIVERED") return;
     const d = new Date(o.updatedAt);
-    if (d < TODAY_START()) return;
-    const h = d.getHours();
-    const idx = Math.floor(((h - 6 + 24) % 24) / 2);
-    if (idx >= 0 && idx < 12) slots[idx].deliveries++;
+    d.setHours(0, 0, 0, 0);
+    const slot = days.find((s) => s.date.getTime() === d.getTime());
+    if (slot) slot.deliveries++;
   });
-  return slots;
+  return days.map(({ name, deliveries }) => ({ name, deliveries }));
 };
 
 // ── custom pie label ──────────────────────────────────────────────────────────
@@ -72,28 +75,16 @@ const tooltipStyle = {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    activeDrivers: 0, deliveriesAssigned: 0,
-    cylindersDelivered: 0, pendingDeliveries: 0,
-    cashCollected: 0, upiPayments: 0,
-  });
-  const [orders, setOrders]       = useState([]);
+  const [activeDrivers, setActiveDrivers] = useState(0);
+  const [orders, setOrders]               = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
-  // ── fetch dashboard stats (numbers only) ──────────────────────────────────
+  // ── fetch active driver count only (still needs /dashboard/stats) ─────────
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res  = await api.get("/dashboard/stats");
-        const data = res.data.metrics;
-        setStats({
-          activeDrivers:      data.activeDrivers      ?? 0,
-          deliveriesAssigned: (data.pendingOrders ?? 0) + (data.deliveredToday ?? 0),
-          cylindersDelivered: data.deliveredToday      ?? 0,
-          pendingDeliveries:  data.pendingOrders       ?? 0,
-          cashCollected:      data.cashCollection      ?? 0,
-          upiPayments:        data.upiCollection       ?? 0,
-        });
+        const res = await api.get("/dashboard/stats");
+        setActiveDrivers(res.data.metrics?.activeDrivers ?? 0);
       } catch (err) { console.error("stats:", err); }
     };
     fetchStats();
@@ -115,16 +106,28 @@ const Dashboard = () => {
     return () => clearInterval(id);
   }, []);
 
+  // ── all-time stats derived from orders ────────────────────────────────────
+  const delivered    = orders.filter((o) => o.status === "DELIVERED");
+  const pending      = orders.filter((o) => o.status === "PENDING");
+  const assigned     = orders.filter((o) =>
+    ["PENDING","OUT_FOR_DELIVERY"].includes(o.status) && o.assignedStaffId
+  );
+  let totalCash = 0, totalUpi = 0;
+  orders.forEach((o) =>
+    (o.transactions ?? []).forEach((t) => {
+      if (t.paymentType === "CASH") totalCash += t.amount;
+      else totalUpi += t.amount;
+    })
+  );
+
   // ── derived chart data ─────────────────────────────────────────────────────
-  const hourlyData = buildHourlyChart(orders);
+  const dailyData = buildDailyChart(orders);
 
   const paymentPieData = (() => {
-    const cash = stats.cashCollected;
-    const upi  = stats.upiPayments;
-    if (!cash && !upi) return [];
+    if (!totalCash && !totalUpi) return [];
     return [
-      { name: "Cash", value: cash },
-      { name: "UPI",  value: upi  },
+      { name: "Cash", value: Math.round(totalCash) },
+      { name: "UPI",  value: Math.round(totalUpi)  },
     ];
   })();
 
@@ -204,14 +207,14 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stat Cards */}
+      {/* Stat Cards — all-time counts from /orders */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
-        <StatCard title="Active Drivers"  value={stats.activeDrivers}           icon={Users}       color="blue"    trend={12} to="/dashboard/drivers"   />
-        <StatCard title="Assigned"        value={stats.deliveriesAssigned}       icon={Truck}       color="indigo"             to="/dashboard/assigned"  />
-        <StatCard title="Delivered"       value={stats.cylindersDelivered}       icon={PackageCheck} color="emerald" trend={8}  to="/dashboard/delivered" />
-        <StatCard title="Pending"         value={stats.pendingDeliveries}        icon={Clock}       color="orange"             to="/dashboard/pending"   />
-        <StatCard title="Cash"            value={`₹${stats.cashCollected}`}      icon={IndianRupee} color="cyan"    trend={5}  to="/dashboard/cash"      />
-        <StatCard title="UPI"             value={`₹${stats.upiPayments}`}        icon={CreditCard}  color="purple"  trend={15} to="/dashboard/upi"       />
+        <StatCard title="Active Drivers"  value={activeDrivers}                  icon={Users}        color="blue"    to="/dashboard/drivers"   />
+        <StatCard title="Assigned"        value={assigned.length}                icon={Truck}        color="indigo"  to="/dashboard/assigned"  />
+        <StatCard title="Delivered"       value={delivered.length}               icon={PackageCheck} color="emerald" to="/dashboard/delivered" />
+        <StatCard title="Pending"         value={pending.length}                 icon={Clock}        color="orange"  to="/dashboard/pending"   />
+        <StatCard title="Cash"            value={`₹${Math.round(totalCash)}`}    icon={IndianRupee}  color="cyan"    to="/dashboard/cash"      />
+        <StatCard title="UPI"             value={`₹${Math.round(totalUpi)}`}     icon={CreditCard}   color="purple"  to="/dashboard/upi"       />
       </div>
 
       {/* Row 1 — Delivery Velocity + Payment Split Pie */}
@@ -223,11 +226,11 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
             <h3 className="text-[18px] font-bold text-[#1F2933] flex items-center gap-2">
               <TrendingUp size={20} />
-              Delivery Velocity (Today)
+              Delivery Velocity (Last 7 Days)
             </h3>
             <div className="flex items-center gap-2 text-[13px] text-gray-400 font-medium">
               <span className="w-2.5 h-2.5 rounded-full bg-[#00C853]" />
-              Deliveries per 2-hour slot
+              Deliveries per day
             </div>
           </div>
 
@@ -235,15 +238,15 @@ const Dashboard = () => {
             <div className="h-[280px] flex items-center justify-center text-gray-400 text-[13px]">
               Loading chart...
             </div>
-          ) : hourlyData.every((s) => s.deliveries === 0) ? (
+          ) : dailyData.every((s) => s.deliveries === 0) ? (
             <div className="h-[280px] flex flex-col items-center justify-center gap-2 text-gray-400">
               <TrendingUp size={32} className="opacity-30" />
-              <p className="text-[14px] font-semibold">No deliveries recorded today yet</p>
+              <p className="text-[14px] font-semibold">No deliveries in the last 7 days</p>
             </div>
           ) : (
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={dailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorDel" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#00C853" stopOpacity={0.15} />
@@ -270,7 +273,7 @@ const Dashboard = () => {
         <div className="bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]"
           style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
           <h3 className="text-[18px] font-bold text-[#1F2933] mb-1">Payment Split</h3>
-          <p className="text-[12px] text-gray-400 font-medium mb-4">Today's collection breakdown</p>
+          <p className="text-[12px] text-gray-400 font-medium mb-4">All-time collection breakdown</p>
 
           {!paymentPieData.length ? (
             <div className="h-[200px] flex items-center justify-center text-gray-400 text-[13px] font-medium">
@@ -307,7 +310,7 @@ const Dashboard = () => {
             <div className="flex justify-between items-center px-3 py-2 bg-[#F0FDF4] rounded-xl border border-green-100">
               <span className="text-[13px] font-bold text-gray-500">Total</span>
               <span className="text-[16px] font-black text-[#00C853]">
-                ₹{stats.cashCollected + stats.upiPayments}
+                ₹{Math.round(totalCash + totalUpi)}
               </span>
             </div>
           </div>
