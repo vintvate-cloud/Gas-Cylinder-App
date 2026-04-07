@@ -9,12 +9,28 @@ import {
   ShoppingCart,
   Users
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Close on ESC key
+  useEffect(() => {
+    if (!showLogoutModal) return;
+    const handler = (e) => { if (e.key === "Escape") setShowLogoutModal(false); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [showLogoutModal]);
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+  };
 
   const menuItems = [
     {
@@ -184,7 +200,7 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
         className={`p-3 border-t border-gray-100 ${collapsed ? "px-2" : ""}`}
       >
         <button
-          onClick={logout}
+          onClick={() => setShowLogoutModal(true)}
           className={`flex items-center gap-3 w-full px-3 py-2.5 text-gray-500 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all duration-200 group ${collapsed ? "justify-center" : ""
             }`}
           title={collapsed ? "Logout" : undefined}
@@ -197,6 +213,47 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
           {!collapsed && <span className="font-semibold text-sm tracking-wide">Logout</span>}
         </button>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Icon */}
+            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <LogOut size={24} className="text-red-500" />
+            </div>
+
+            {/* Text */}
+            <h3 className="text-[18px] font-bold text-[#1F2933] text-center mb-1">Confirm Logout</h3>
+            <p className="text-[13px] text-gray-400 text-center mb-6">
+              Are you sure you want to logout?<br />
+              You will need to sign in again to access the panel.
+            </p>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-[14px] font-bold text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <LogOut size={15} /> Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -76,6 +76,7 @@ const tooltipStyle = {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const [activeDrivers, setActiveDrivers] = useState(0);
+  const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [orders, setOrders]               = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
@@ -86,6 +87,7 @@ const Dashboard = () => {
         const res = await api.get("/dashboard/stats");
         setActiveDrivers(res.data.metrics?.activeDrivers ?? 0);
       } catch (err) { console.error("stats:", err); }
+      finally { setLoadingDrivers(false); }
     };
     fetchStats();
     const id = setInterval(fetchStats, 30000);
@@ -209,12 +211,12 @@ const Dashboard = () => {
 
       {/* Stat Cards — all-time counts from /orders */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
-        <StatCard title="Active Drivers"  value={activeDrivers}                  icon={Users}        color="blue"    to="/dashboard/drivers"   />
-        <StatCard title="Assigned"        value={assigned.length}                icon={Truck}        color="indigo"  to="/dashboard/assigned"  />
-        <StatCard title="Delivered"       value={delivered.length}               icon={PackageCheck} color="emerald" to="/dashboard/delivered" />
-        <StatCard title="Pending"         value={pending.length}                 icon={Clock}        color="orange"  to="/dashboard/pending"   />
-        <StatCard title="Cash"            value={`₹${Math.round(totalCash)}`}    icon={IndianRupee}  color="cyan"    to="/dashboard/cash"      />
-        <StatCard title="UPI"             value={`₹${Math.round(totalUpi)}`}     icon={CreditCard}   color="purple"  to="/dashboard/upi"       />
+        <StatCard title="Active Drivers"  value={activeDrivers}               icon={Users}        color="blue"    to="/dashboard/drivers"   loading={loadingDrivers} />
+        <StatCard title="Assigned"        value={assigned.length}             icon={Truck}        color="indigo"  to="/dashboard/assigned"  loading={loadingOrders} />
+        <StatCard title="Delivered"       value={delivered.length}            icon={PackageCheck} color="emerald" to="/dashboard/delivered" loading={loadingOrders} />
+        <StatCard title="Pending"         value={pending.length}              icon={Clock}        color="orange"  to="/dashboard/pending"   loading={loadingOrders} />
+        <StatCard title="Cash"            value={`₹${Math.round(totalCash)}`} icon={IndianRupee}  color="cyan"    to="/dashboard/cash"      loading={loadingOrders} />
+        <StatCard title="UPI"             value={`₹${Math.round(totalUpi)}`}  icon={CreditCard}   color="purple"  to="/dashboard/upi"       loading={loadingOrders} />
       </div>
 
       {/* Row 1 — Delivery Velocity + Payment Split Pie */}
