@@ -17,8 +17,12 @@ import { toast } from "react-hot-toast";
 import api from "../services/api";
 import socketService from "../services/socket";
 
-const StockItemCard = ({ item, onAdjust, onQuickAdjust }) => {
-  const isLow = item.full < item.threshold;
+const Sk = ({ w = "w-full", h = "h-4" }) => (
+  <div className={`${w} ${h} rounded-lg bg-gray-200 animate-pulse`} />
+);
+
+const StockItemCard = ({ item, onAdjust, onQuickAdjust, loading }) => {
+  const isLow = !loading && item.full < item.threshold;
 
   return (
     <div
@@ -32,59 +36,59 @@ const StockItemCard = ({ item, onAdjust, onQuickAdjust }) => {
       )}
 
       <div className="flex items-start gap-4 mb-5">
-        <div
-          className={`p-3 rounded-xl ${isLow ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"}`}
-        >
+        <div className={`p-3 rounded-xl ${isLow ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"}`}>
           <Package size={24} />
         </div>
         <div className="flex-1 pt-0.5">
-          <h3 className="text-lg font-semibold text-[#1F2933] leading-tight mb-1">
-            {item.type}
-          </h3>
-          <p className="text-gray-400 text-xs flex items-center gap-1 font-medium">
-            <Info size={12} /> Threshold: {item.threshold}
-          </p>
+          {loading
+            ? <><Sk w="w-28" h="h-5" /><Sk w="w-16" h="h-3" /></>
+            : <>
+                <h3 className="text-lg font-semibold text-[#1F2933] leading-tight mb-1">{item.type}</h3>
+                <p className="text-gray-400 text-xs flex items-center gap-1 font-medium">
+                  <Info size={12} /> Threshold: {item.threshold}
+                </p>
+              </>
+          }
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-5">
-        <div
-          className={`rounded-xl p-3 border ${isLow ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"} flex flex-col items-center justify-center`}
-        >
-          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mb-1">
-            Full Stock
-          </p>
-          <h4
-            className={`text-4xl font-bold ${isLow ? "text-red-600" : "text-[#1F2933]"}`}
-          >
-            {item.full}
-          </h4>
+        <div className={`rounded-xl p-3 border ${isLow ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"} flex flex-col items-center justify-center min-h-[80px]`}>
+          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mb-1">Full Stock</p>
+          {loading
+            ? <Sk w="w-12" h="h-10" />
+            : <h4 className={`text-4xl font-bold animate-in fade-in duration-300 ${isLow ? "text-red-600" : "text-[#1F2933]"}`}>{item.full}</h4>
+          }
         </div>
-        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 flex flex-col items-center justify-center">
-          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mb-1">
-            Empty Stock
-          </p>
-          <h4 className="text-2xl font-bold text-gray-400">{item.empty}</h4>
+        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 flex flex-col items-center justify-center min-h-[80px]">
+          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mb-1">Empty Stock</p>
+          {loading
+            ? <Sk w="w-10" h="h-8" />
+            : <h4 className="text-2xl font-bold text-gray-400 animate-in fade-in duration-300">{item.empty}</h4>
+          }
         </div>
       </div>
 
       <div className="flex gap-2">
         <button
-          onClick={() => onQuickAdjust(item.id, -1)}
-          className="w-10 h-10 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all"
+          onClick={() => !loading && onQuickAdjust(item.id, -1)}
+          disabled={loading}
+          className="w-10 h-10 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           title="Decrease stock by 1"
         >
           <Minus size={18} strokeWidth={3} />
         </button>
         <button
-          onClick={() => onAdjust(item.id, "FULL")}
-          className="flex-1 bg-white shadow-sm text-gray-600 font-bold tracking-wide rounded-md border border-gray-200 hover:bg-gray-50 transition-all flex items-center justify-center gap-1.5 text-[13px]"
+          onClick={() => !loading && onAdjust(item.id, "FULL")}
+          disabled={loading}
+          className="flex-1 bg-white shadow-sm text-gray-600 font-bold tracking-wide rounded-md border border-gray-200 hover:bg-gray-50 transition-all flex items-center justify-center gap-1.5 text-[13px] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Settings2 size={16} strokeWidth={2.5} /> Manage
         </button>
         <button
-          onClick={() => onQuickAdjust(item.id, 1)}
-          className="w-10 h-10 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:bg-[#E8F5E9] hover:text-[#00C853] hover:border-[#00C853] transition-all"
+          onClick={() => !loading && onQuickAdjust(item.id, 1)}
+          disabled={loading}
+          className="w-10 h-10 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:bg-[#E8F5E9] hover:text-[#00C853] hover:border-[#00C853] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           title="Increase stock by 1"
         >
           <Plus size={18} strokeWidth={3} />
@@ -328,7 +332,18 @@ const Inventory = () => {
 
       {/* Grid of Stocks */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {stocks.length === 0 && !loading && (
+        {loading && stocks.length === 0 && (
+          Array.from({ length: 4 }).map((_, i) => (
+            <StockItemCard
+              key={`skel-${i}`}
+              item={{ id: i, type: "", full: 0, empty: 0, threshold: 10 }}
+              onAdjust={() => {}}
+              onQuickAdjust={() => {}}
+              loading
+            />
+          ))
+        )}
+        {!loading && stocks.length === 0 && (
           <div className="col-span-full py-16 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50">
             <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Package size={32} className="text-gray-400" />
@@ -354,6 +369,7 @@ const Inventory = () => {
             item={item}
             onAdjust={handleAdjustStock}
             onQuickAdjust={handleQuickAdjust}
+            loading={false}
           />
         ))}
       </div>
