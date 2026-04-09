@@ -354,13 +354,26 @@ const Dashboard = () => {
   const [allOrders, setAllOrders]           = useState([]);
   const [loadingOrders, setLoadingOrders]   = useState(true);
 
+  // firstLoad: true until BOTH initial fetches complete — never re-triggers on 30s polls
+  const [firstLoad, setFirstLoad] = useState(true);
+  const driversReady = useRef(false);
+  const ordersReady  = useRef(false);
+
+  const markReady = () => {
+    if (driversReady.current && ordersReady.current) setFirstLoad(false);
+  };
+
   useEffect(() => {
     const run = async () => {
       try {
         const res = await api.get("/dashboard/stats");
         setActiveDrivers(res.data.metrics?.activeDrivers ?? 0);
       } catch (e) { console.error(e); }
-      finally { setLoadingDrivers(false); }
+      finally {
+        setLoadingDrivers(false);
+        driversReady.current = true;
+        markReady();
+      }
     };
     run();
     const id = setInterval(run, 30000);
@@ -373,7 +386,11 @@ const Dashboard = () => {
         const res = await api.get("/orders");
         setAllOrders(Array.isArray(res.data) ? res.data : []);
       } catch (e) { console.error(e); }
-      finally { setLoadingOrders(false); }
+      finally {
+        setLoadingOrders(false);
+        ordersReady.current = true;
+        markReady();
+      }
     };
     run();
     const id = setInterval(run, 30000);
@@ -462,98 +479,183 @@ const Dashboard = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 p-2 lg:p-4">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-2">
-        <div>
-          <h2 className="text-[26px] lg:text-[28px] font-bold text-[#1F2933]">
-            Dashboard Overview
-          </h2>
-          <p className="text-[#6B7280] mt-1 text-[15px] font-medium">
-            Real-time status of your delivery operations
-          </p>
-        </div>
-        <div className="px-4 py-2 bg-white border border-gray-100 rounded-full flex items-center gap-2 shadow-sm shrink-0">
-          <div className="w-2 h-2 bg-[#00C853] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,200,83,0.6)]" />
-          <span className="text-[13px] font-bold text-gray-500 tracking-wide uppercase">Live Updates</span>
-        </div>
-      </div>
-
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
-        <StatCard title="Active Drivers" value={activeDrivers}               icon={Users}        color="blue"    to="/dashboard/drivers"   loading={loadingDrivers} />
-        <StatCard title="Assigned"       value={assigned.length}             icon={Truck}        color="indigo"  to="/dashboard/assigned"  loading={loadingOrders} />
-        <StatCard title="Delivered"      value={delivered.length}            icon={PackageCheck} color="emerald" to="/dashboard/delivered" loading={loadingOrders} />
-        <StatCard title="Pending"        value={pending.length}              icon={Clock}        color="orange"  to="/dashboard/pending"   loading={loadingOrders} />
-        <StatCard title="Cash"           value={`₹${Math.round(totalCash)}`} icon={IndianRupee}  color="cyan"    to="/dashboard/cash"      loading={loadingOrders} />
-        <StatCard title="UPI"            value={`₹${Math.round(totalUpi)}`}  icon={CreditCard}   color="purple"  to="/dashboard/upi"       loading={loadingOrders} />
-      </div>
-
-      {/* Row 1 — Delivery Velocity + Payment Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        {/* DeliveryVelocity is fully self-contained */}
-        <DeliveryVelocity allOrders={allOrders} loading={loadingOrders} />
-
-        {/* Payment Split */}
-        <div className="bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]"
-          style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
-          <h3 className="text-[18px] font-bold text-[#1F2933] mb-1">Payment Split</h3>
-          <p className="text-[12px] text-gray-400 font-medium mb-4">All-time collection breakdown</p>
-
-          {loadingOrders ? (
-            <div className="h-[200px] flex items-center justify-center">
-              <div className="w-28 h-28 rounded-full border-[10px] border-gray-100 animate-pulse" />
+      {/* ── SKELETON LOADING — mirrors exact dashboard layout ── */}
+      {firstLoad ? (
+        <>
+          {/* Header skeleton */}
+          <div className="flex justify-between items-start mb-2">
+            <div className="space-y-2">
+              <div className="h-8 w-56 bg-gray-100 rounded-xl animate-pulse" />
+              <div className="h-4 w-72 bg-gray-100 rounded-lg animate-pulse" />
             </div>
-          ) : !paymentPieData.length ? (
-            <div className="h-[200px] flex items-center justify-center text-gray-400 text-[13px] font-medium">
-              No payments recorded
-            </div>
-          ) : (
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={paymentPieData} cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={80}
-                    dataKey="value" labelLine={false} label={PieLabel}
-                    isAnimationActive animationDuration={500}>
-                    {paymentPieData.map((_, i) => (
-                      <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`₹${v}`, ""]} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+            <div className="h-8 w-28 bg-gray-100 rounded-full animate-pulse" />
+          </div>
 
-          <div className="space-y-2 mt-4">
-            {paymentPieData.map((entry, i) => (
-              <div key={i} className="flex justify-between items-center px-3 py-2 bg-gray-50 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[i] }} />
-                  <span className="text-[13px] font-semibold text-gray-500">{entry.name}</span>
+          {/* Stat cards skeleton */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white border border-[#E5E7EB] p-5 rounded-[20px] space-y-3"
+                style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <div className="h-3 w-20 bg-gray-100 rounded-lg animate-pulse" />
+                    <div className="h-8 w-14 bg-gray-100 rounded-xl animate-pulse" />
+                  </div>
+                  <div className="w-10 h-10 rounded-2xl bg-gray-100 animate-pulse" />
                 </div>
-                <span className="text-[14px] font-bold text-[#1F2933]">₹{entry.value}</span>
+                <div className="h-3 w-12 bg-gray-100 rounded-lg animate-pulse" />
               </div>
             ))}
-            {(totalCash > 0 || totalUpi > 0) && (
-              <div className="flex justify-between items-center px-3 py-2 bg-[#F0FDF4] rounded-xl border border-green-100">
-                <span className="text-[13px] font-bold text-gray-500">Total</span>
-                <span className="text-[16px] font-black text-[#00C853]">
-                  ₹{Math.round(totalCash + totalUpi)}
-                </span>
-              </div>
-            )}
           </div>
-        </div>
-      </div>
 
-      {/* Row 2 — Order Status + Cylinder Type */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <PieCard title="Order Status Breakdown"     data={statusPieData}   colors={STATUS_COLORS}   emptyMsg="No orders found" />
-        <PieCard title="Cylinder Type Distribution" data={cylinderPieData} colors={CYLINDER_COLORS} emptyMsg="No orders found" />
-      </div>
+          {/* Chart row skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Velocity chart */}
+            <div className="lg:col-span-2 bg-white border border-[#E5E7EB] p-5 lg:p-6 rounded-[20px]"
+              style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+              <div className="flex justify-between items-center mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gray-100 animate-pulse" />
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-36 bg-gray-100 rounded-lg animate-pulse" />
+                    <div className="h-3 w-20 bg-gray-100 rounded-lg animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-7 w-24 bg-gray-100 rounded-xl animate-pulse" />
+              </div>
+              <div className="h-[260px] flex items-end gap-2 px-2 pb-6">
+                {[45, 70, 35, 85, 55, 65, 40, 75, 50, 80, 45, 60].map((h, i) => (
+                  <div key={i} className="flex-1 bg-gray-100 rounded-t-lg animate-pulse" style={{ height: `${h}%` }} />
+                ))}
+              </div>
+            </div>
 
+            {/* Payment split skeleton */}
+            <div className="bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]"
+              style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+              <div className="h-5 w-32 bg-gray-100 rounded-lg animate-pulse mb-2" />
+              <div className="h-3 w-44 bg-gray-100 rounded-lg animate-pulse mb-5" />
+              <div className="flex items-center justify-center h-[200px]">
+                <div className="w-32 h-32 rounded-full border-[12px] border-gray-100 animate-pulse" />
+              </div>
+              <div className="space-y-2 mt-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex justify-between items-center px-3 py-2 bg-gray-50 rounded-xl">
+                    <div className="h-3 w-16 bg-gray-100 rounded-lg animate-pulse" />
+                    <div className="h-4 w-12 bg-gray-100 rounded-lg animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Pie cards row skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {[0, 1].map((i) => (
+              <div key={i} className="bg-white border border-[#E5E7EB] p-5 lg:p-6 rounded-[20px]"
+                style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+                <div className="h-4 w-40 bg-gray-100 rounded-lg animate-pulse mb-5" />
+                <div className="flex items-center justify-center h-[180px]">
+                  <div className="w-28 h-28 rounded-full border-[10px] border-gray-100 animate-pulse" />
+                </div>
+                <div className="flex gap-4 mt-3">
+                  {[60, 45, 70].map((w, j) => (
+                    <div key={j} className="h-3 bg-gray-100 rounded-lg animate-pulse" style={{ width: `${w}px` }} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-2">
+            <div>
+              <h2 className="text-[26px] lg:text-[28px] font-bold text-[#1F2933]">
+                Dashboard Overview
+              </h2>
+              <p className="text-[#6B7280] mt-1 text-[15px] font-medium">
+                Real-time status of your delivery operations
+              </p>
+            </div>
+            <div className="px-4 py-2 bg-white border border-gray-100 rounded-full flex items-center gap-2 shadow-sm shrink-0">
+              <div className="w-2 h-2 bg-[#00C853] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,200,83,0.6)]" />
+              <span className="text-[13px] font-bold text-gray-500 tracking-wide uppercase">Live Updates</span>
+            </div>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
+            <StatCard title="Active Drivers" value={activeDrivers}               icon={Users}        color="blue"    to="/dashboard/drivers"   loading={loadingDrivers} />
+            <StatCard title="Assigned"       value={assigned.length}             icon={Truck}        color="indigo"  to="/dashboard/assigned"  loading={loadingOrders} />
+            <StatCard title="Delivered"      value={delivered.length}            icon={PackageCheck} color="emerald" to="/dashboard/delivered" loading={loadingOrders} />
+            <StatCard title="Pending"        value={pending.length}              icon={Clock}        color="orange"  to="/dashboard/pending"   loading={loadingOrders} />
+            <StatCard title="Cash"           value={`₹${Math.round(totalCash)}`} icon={IndianRupee}  color="cyan"    to="/dashboard/cash"      loading={loadingOrders} />
+            <StatCard title="UPI"            value={`₹${Math.round(totalUpi)}`}  icon={CreditCard}   color="purple"  to="/dashboard/upi"       loading={loadingOrders} />
+          </div>
+
+          {/* Row 1 — Delivery Velocity + Payment Split */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <DeliveryVelocity allOrders={allOrders} loading={loadingOrders} />
+
+            {/* Payment Split */}
+            <div className="bg-white border border-[#E5E7EB] p-5 lg:p-7 rounded-[20px]"
+              style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+              <h3 className="text-[18px] font-bold text-[#1F2933] mb-1">Payment Split</h3>
+              <p className="text-[12px] text-gray-400 font-medium mb-4">All-time collection breakdown</p>
+              {loadingOrders ? (
+                <div className="h-[200px] flex items-center justify-center">
+                  <div className="w-28 h-28 rounded-full border-[10px] border-gray-100 animate-pulse" />
+                </div>
+              ) : !paymentPieData.length ? (
+                <div className="h-[200px] flex items-center justify-center text-gray-400 text-[13px] font-medium">
+                  No payments recorded
+                </div>
+              ) : (
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={paymentPieData} cx="50%" cy="50%"
+                        innerRadius={50} outerRadius={80}
+                        dataKey="value" labelLine={false} label={PieLabel}
+                        isAnimationActive animationDuration={500}>
+                        {paymentPieData.map((_, i) => (
+                          <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`₹${v}`, ""]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              <div className="space-y-2 mt-4">
+                {paymentPieData.map((entry, i) => (
+                  <div key={i} className="flex justify-between items-center px-3 py-2 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[i] }} />
+                      <span className="text-[13px] font-semibold text-gray-500">{entry.name}</span>
+                    </div>
+                    <span className="text-[14px] font-bold text-[#1F2933]">₹{entry.value}</span>
+                  </div>
+                ))}
+                {(totalCash > 0 || totalUpi > 0) && (
+                  <div className="flex justify-between items-center px-3 py-2 bg-[#F0FDF4] rounded-xl border border-green-100">
+                    <span className="text-[13px] font-bold text-gray-500">Total</span>
+                    <span className="text-[16px] font-black text-[#00C853]">₹{Math.round(totalCash + totalUpi)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 — Order Status + Cylinder Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <PieCard title="Order Status Breakdown"     data={statusPieData}   colors={STATUS_COLORS}   emptyMsg="No orders found" />
+            <PieCard title="Cylinder Type Distribution" data={cylinderPieData} colors={CYLINDER_COLORS} emptyMsg="No orders found" />
+          </div>
+        </>
+      )}
     </div>
   );
 };
