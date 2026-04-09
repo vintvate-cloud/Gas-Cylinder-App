@@ -1,6 +1,8 @@
 import { ArrowLeft, IndianRupee, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../../components/DataTable";
+import TimeFilter from "../../components/TimeFilter";
 import useFetch from "../../hooks/useFetch";
 
 const columns = [
@@ -9,36 +11,49 @@ const columns = [
   { key: "customerName", label: "Customer" },
   { key: "driverName",   label: "Driver" },
   { key: "amount",       label: "Amount",    render: (v) => `₹${v}` },
-  { key: "timestamp",    label: "Time",      render: (v) => new Date(v).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) },
+  {
+    key: "timestamp",
+    label: "Time",
+    render: (v) => new Date(v).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+  },
 ];
+
+const getRangeStart = (range) => {
+  const d = new Date();
+  if (range === "24hr")  { d.setHours(d.getHours() - 24); return d; }
+  if (range === "week")  { d.setDate(d.getDate() - 7);    return d; }
+  if (range === "month") { d.setMonth(d.getMonth() - 1);  return d; }
+  return null;
+};
 
 const CashPage = () => {
   const navigate = useNavigate();
-  // GET /api/orders includes transactions[] — extract CASH txns from today client-side
+  const [range, setRange] = useState("24hr");
   const { data, loading, error, refetch } = useFetch("/orders");
 
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const cashRows = Array.isArray(data)
-    ? data.flatMap((o) =>
-        (o.transactions ?? [])
-          .filter((t) => t.paymentType === "CASH" && new Date(t.timestamp) >= todayStart)
-          .map((t) => ({
-            id: t.id,
-            txnId: t.id,
-            orderId: o.id,
-            customerName: o.customerName,
-            driverName: o.assignedStaff?.name ?? "—",
-            amount: t.amount,
-            timestamp: t.timestamp,
-          }))
-      )
-    : [];
+  const cashRows = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    const start = getRangeStart(range);
+    return data.flatMap((o) =>
+      (o.transactions ?? [])
+        .filter((t) => {
+          if (t.paymentType !== "CASH") return false;
+          return start ? new Date(t.timestamp) >= start : true;
+        })
+        .map((t) => ({
+          id: t.id, txnId: t.id, orderId: o.id,
+          customerName: o.customerName,
+          driverName: o.assignedStaff?.name ?? "—",
+          amount: t.amount, timestamp: t.timestamp,
+        }))
+    );
+  }, [data, range]);
 
   const total = cashRows.reduce((s, r) => s + (r.amount ?? 0), 0);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
             <ArrowLeft size={20} className="text-gray-500" />
@@ -49,15 +64,21 @@ const CashPage = () => {
           <div>
             <h2 className="text-[22px] font-bold text-[#1F2933]">Cash Transactions</h2>
             <p className="text-[13px] text-gray-400 font-medium">
-              {cashRows.length} transactions · Total <span className="text-[#1F2933] font-bold">₹{total}</span>
+              {loading
+                ? "Loading..."
+                : <>{cashRows.length} transactions · Total <span className="text-[#1F2933] font-bold">₹{total}</span></>
+              }
             </p>
           </div>
         </div>
-        <button onClick={refetch} className="flex items-center gap-2 px-3 py-2 text-[13px] font-semibold text-gray-500 hover:text-[#1F2933] hover:bg-gray-100 rounded-xl transition-colors">
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <TimeFilter value={range} onChange={setRange} />
+          <button onClick={refetch} className="flex items-center gap-2 px-3 py-2 text-[13px] font-semibold text-gray-500 hover:text-[#1F2933] hover:bg-gray-100 rounded-xl transition-colors">
+            <RefreshCw size={14} />
+          </button>
+        </div>
       </div>
-      <DataTable columns={columns} data={cashRows} loading={loading} error={error} onRetry={refetch} emptyMessage="No cash transactions today" />
+      <DataTable columns={columns} data={cashRows} loading={loading} error={error} onRetry={refetch} emptyMessage="No cash transactions in this period" />
     </div>
   );
 };

@@ -1,15 +1,20 @@
-import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+
+// Skeleton row shown while loading — keeps table header visible
+const SkRow = ({ cols }) => (
+  <tr>
+    {Array.from({ length: cols }).map((_, i) => (
+      <td key={i} className="px-5 py-4">
+        <div
+          className="h-3.5 rounded-lg bg-gray-100 animate-pulse"
+          style={{ width: `${45 + (i * 19) % 40}%` }}
+        />
+      </td>
+    ))}
+  </tr>
+);
 
 const DataTable = ({ columns, data, loading, error, emptyMessage = "No data found", onRetry }) => {
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 size={32} className="animate-spin text-[#00C853]" />
-        <p className="text-[13px] text-gray-400 font-medium">Loading...</p>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -29,7 +34,7 @@ const DataTable = ({ columns, data, loading, error, emptyMessage = "No data foun
     );
   }
 
-  if (!data?.length) {
+  if (!loading && !data?.length) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
         <p className="text-[15px] font-semibold">{emptyMessage}</p>
@@ -50,15 +55,18 @@ const DataTable = ({ columns, data, loading, error, emptyMessage = "No data foun
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
-          {data.map((row, i) => (
-            <tr key={row.id || i} className="bg-white hover:bg-gray-50/80 transition-colors">
-              {columns.map((col) => (
-                <td key={col.key} className="px-5 py-3.5 text-[14px] text-[#1F2933] whitespace-nowrap">
-                  {col.render ? col.render(row[col.key], row) : (row[col.key] ?? "—")}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => <SkRow key={i} cols={columns.length} />)
+            : data.map((row, i) => (
+                <tr key={row.id || i} className="bg-white hover:bg-gray-50/80 transition-colors">
+                  {columns.map((col) => (
+                    <td key={col.key} className="px-5 py-3.5 text-[14px] text-[#1F2933] whitespace-nowrap">
+                      {col.render ? col.render(row[col.key], row) : (row[col.key] ?? "—")}
+                    </td>
+                  ))}
+                </tr>
+              ))
+          }
         </tbody>
       </table>
     </div>

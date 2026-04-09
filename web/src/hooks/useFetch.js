@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import api from "../services/api";
 
-const useFetch = (endpoint) => {
+// params is an optional object e.g. { range: "week" }
+// Changing params triggers a re-fetch automatically
+const useFetch = (endpoint, params = {}) => {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+
+  // Serialise params so useCallback re-creates when they change
+  const paramKey = JSON.stringify(params);
 
   const fetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get(endpoint);
+      const res = await api.get(endpoint, { params });
       setData(res.data);
     } catch (err) {
       const status = err.response?.status;
@@ -21,7 +26,8 @@ const useFetch = (endpoint) => {
     } finally {
       setLoading(false);
     }
-  }, [endpoint]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint, paramKey]);
 
   useEffect(() => { fetch(); }, [fetch]);
 

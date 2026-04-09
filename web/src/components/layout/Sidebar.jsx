@@ -10,6 +10,7 @@ import {
   Users
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "react-hot-toast";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -214,10 +215,10 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
         </button>
       </div>
 
-      {/* Logout Confirmation Modal */}
-      {showLogoutModal && (
+      {/* Logout Confirmation Modal — rendered via portal so it escapes sidebar z-index/overflow */}
+      {showLogoutModal && createPortal(
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowLogoutModal(false)}
         >
           <div
@@ -252,7 +253,8 @@ const Sidebar = ({ onClose, isMobileOpen, collapsed, onToggleCollapse }) => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
