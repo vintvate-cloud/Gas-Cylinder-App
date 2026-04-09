@@ -468,7 +468,7 @@ const StaffManagement = () => {
       {/* Task Modal */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xl rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-white w-[90%] md:w-[70%] lg:w-[50%] rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-300">
             <div className="p-6 border-b border-gray-100 bg-gray-50/50">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-[#1F2933]">
@@ -489,7 +489,7 @@ const StaffManagement = () => {
             <form onSubmit={handleTaskSubmit} className="p-6 space-y-4">
               {selectedStaff.role === "DRIVER" ? (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-500 ml-1">
                         Customer Name
@@ -573,7 +573,7 @@ const StaffManagement = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-500 ml-1">
                         Cylinder Type
@@ -622,7 +622,7 @@ const StaffManagement = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-4 bg-[#1F2933] hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity flex items-center justify-70-center gap-2"
+                className="w-full mt-4 bg-[#1F2933] hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-70 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <Loader2 className="animate-spin" size={18} />
@@ -638,8 +638,8 @@ const StaffManagement = () => {
       {/* Add/Edit Staff Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+          <div className="bg-white w-[90%] md:w-[70%] lg:w-[50%] rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-300">
+            <div className="p-5 border-b border-gray-100 bg-gray-50/50 sticky top-0 z-10">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-[#1F2933]">
                   {editingStaff ? "Edit Staff" : "Add New Staff"}
@@ -653,135 +653,110 @@ const StaffManagement = () => {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              {/* Full Name — full width */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-500 ml-1">
-                  Full Name
-                </label>
+                <label className="text-xs font-medium text-gray-500 ml-1">Full Name</label>
                 <input
                   required
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
                   placeholder="John Doe"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-500 ml-1">
-                  Email
-                </label>
-                <input
-                  required
-                  type="email"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
-                  placeholder="john@example.com"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-500 ml-1">
-                  Phone
-                </label>
-                <input
-                  required
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
-                  placeholder="+91 00000 00000"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-500 ml-1">
-                  Role
-                </label>
-                <select
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
-                  value={formData.role}
-                  onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value })
-                  }
-                >
-                  <option value="DRIVER">Driver</option>
-                  <option value="MANAGER">Manager</option>
-                </select>
-              </div>
-
-              {!editingStaff && (
+              {/* Email + Phone — 2 cols on md+ */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 ml-1">
-                    Password
-                  </label>
+                  <label className="text-xs font-medium text-gray-500 ml-1">Email</label>
                   <input
                     required
-                    type="password"
+                    type="email"
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
+                    placeholder="john@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
-              )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 ml-1">Phone</label>
+                  <input
+                    required
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
+                    placeholder="+91 00000 00000"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+              </div>
 
-              {formData.role === "DRIVER" && (
-                <>
+              {/* Role + Password — 2 cols on md+ */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 ml-1">Role</label>
+                  <select
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  >
+                    <option value="DRIVER">Driver</option>
+                    <option value="MANAGER">Manager</option>
+                  </select>
+                </div>
+                {!editingStaff && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500 ml-1">
-                      Vehicle Number
-                    </label>
+                    <label className="text-xs font-medium text-gray-500 ml-1">Password</label>
+                    <input
+                      required
+                      type="password"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Driver-only fields — 2 cols on md+ */}
+              {formData.role === "DRIVER" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500 ml-1">Vehicle Number</label>
                     <input
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
                       placeholder="MH 01 AB 1234"
                       value={formData.vehicleNumber}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          vehicleNumber: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500 ml-1">
-                      License Number
-                    </label>
+                    <label className="text-xs font-medium text-gray-500 ml-1">License Number</label>
                     <input
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3 text-[#1F2933] text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-300 outline-none transition-all"
                       placeholder="MH0123456789"
                       value={formData.licenseNumber}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          licenseNumber: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
                     />
                   </div>
-                </>
+                </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-2 bg-[#1F2933] hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-70 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin" size={18} />
-                ) : (
-                  <>{editingStaff ? "Save Changes" : "Add Staff Member"}</>
-                )}
-              </button>
+              {/* Submit — full width mobile, right-aligned desktop */}
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full md:w-auto md:min-w-[160px] bg-[#1F2933] hover:bg-gray-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <>{editingStaff ? "Save Changes" : "Add Staff Member"}</>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>
